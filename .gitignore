@@ -1,0 +1,39 @@
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+env.bak/
+venv.bak/
+
+# Logs
+logs/
+*.log
+
+# Docker
+.docker/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Uploaded documents (never commit college PDFs)
+backend/data/documents/
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
+
+# Test artifacts
+backend/tests/fixtures/*.pdf
+!backend/tests/fixtures/keep
