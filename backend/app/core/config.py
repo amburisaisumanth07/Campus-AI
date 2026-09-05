@@ -7,8 +7,11 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 class Settings(BaseSettings):
     APP_ENV: str = "development"
+    PORT: int = 8000
     LOG_LEVEL: str = "INFO"
     DATABASE_URL: str
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
     CORS_ORIGINS: str = "http://localhost:5173"
 
     # Authentication
@@ -36,6 +39,8 @@ class Settings(BaseSettings):
     # ChromaDB (HttpClient service)
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8001
+    CHROMA_SSL: bool = False
+    CHROMA_AUTH_TOKEN: str = ""
     CHROMA_COLLECTION: str = "campus_docs"
 
     # RAG tuning
@@ -45,13 +50,13 @@ class Settings(BaseSettings):
     RAG_RELEVANCE_THRESHOLD: float = 0.0
 
     model_config = SettingsConfigDict(
-        env_file=str(ROOT_DIR / ".env"),
+        env_file=(str(ROOT_DIR / ".env"), ".env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 settings = Settings()

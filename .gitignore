@@ -27,8 +27,17 @@ logs/
 .idea/
 *.swp
 
+# Local Dev State & Caches
+.campusai_dev.json
+.pytest_cache/
+.coverage
+coverage/
+*.sqlite3
+*.db
+
 # Uploaded documents (never commit college PDFs)
 backend/data/documents/
+data/documents/
 
 # Frontend build
 frontend/dist/

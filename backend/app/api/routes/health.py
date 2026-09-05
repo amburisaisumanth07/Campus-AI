@@ -6,6 +6,7 @@ from backend.app.core.logging import logger
 
 router = APIRouter()
 
+@router.get("")
 @router.get("/")
 def health_check():
     """

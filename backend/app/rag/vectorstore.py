@@ -15,13 +15,19 @@ EXPECTED_VECTOR_DIM = 768
 _chroma_client = None
 
 def get_chroma_client() -> chromadb.HttpClient:
-    """Return a Chroma HTTP client connected to the Chroma container."""
+    """Return a Chroma HTTP client connected to the Chroma container or remote service."""
     global _chroma_client
     if _chroma_client is None:
-        _chroma_client = chromadb.HttpClient(
-            host=settings.CHROMA_HOST,
-            port=settings.CHROMA_PORT,
-        )
+        client_kwargs: Dict[str, Any] = {
+            "host": settings.CHROMA_HOST,
+            "port": settings.CHROMA_PORT,
+            "ssl": getattr(settings, "CHROMA_SSL", False),
+        }
+        token = getattr(settings, "CHROMA_AUTH_TOKEN", "")
+        if token:
+            client_kwargs["headers"] = {"Authorization": f"Bearer {token}"}
+
+        _chroma_client = chromadb.HttpClient(**client_kwargs)
     return _chroma_client
 
 

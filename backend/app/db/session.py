@@ -6,9 +6,14 @@ from backend.app.core.config import settings
 from backend.app.core.logging import logger
 
 try:
+    engine_kwargs = {"pool_pre_ping": True}
+    if not settings.DATABASE_URL.startswith("sqlite"):
+        engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
+        engine_kwargs["max_overflow"] = settings.DB_MAX_OVERFLOW
+
     engine = create_engine(
         settings.DATABASE_URL,
-        pool_pre_ping=True,  # Enable connection health checks
+        **engine_kwargs,
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:
