@@ -1,6 +1,13 @@
 """
-Vectorstore module — Chroma vector database integration over HTTP (HttpClient)
-and vector CRUD operations for 768-dimensional Gemini embeddings.
+Vectorstore module — Chroma vector database integration supporting two modes:
+  - Local development : chromadb.HttpClient  (localhost:8001)
+  - Production (Cloud): chromadb.CloudClient (Chroma Cloud via CHROMA_API_KEY)
+
+The active mode is selected automatically at runtime:
+  * If CHROMA_API_KEY is set in the environment → CloudClient is used.
+  * Otherwise                                   → HttpClient is used.
+
+Vector CRUD operations target 768-dimensional Gemini embeddings in both modes.
 """
 
 from typing import List, Dict, Any, Optional
@@ -14,20 +21,54 @@ EXPECTED_VECTOR_DIM = 768
 
 _chroma_client = None
 
-def get_chroma_client() -> chromadb.HttpClient:
-    """Return a Chroma HTTP client connected to the Chroma container or remote service."""
+
+def _build_chroma_client():
+    """
+    Build and return a new Chroma client based on the current environment.
+
+    - If ``CHROMA_API_KEY`` is set: returns a ``chromadb.CloudClient`` targeting
+      Chroma Cloud with the configured tenant and database.
+    - Otherwise: returns a ``chromadb.HttpClient`` for the local Chroma service
+      (localhost:8001 by default), preserving SSL and auth-token support.
+    """
+    api_key = getattr(settings, "CHROMA_API_KEY", "")
+    if api_key:
+        raw_tenant = getattr(settings, "CHROMA_TENANT", "") or ""
+        raw_database = getattr(settings, "CHROMA_DATABASE", "") or ""
+        tenant = raw_tenant.strip() if raw_tenant.strip() else None
+        database = raw_database.strip() if raw_database.strip() else None
+        logger.info(
+            "Chroma: using CloudClient (tenant=%s, database=%s)",
+            tenant,
+            database,
+        )
+        return chromadb.CloudClient(
+            api_key=api_key,
+            tenant=tenant,
+            database=database,
+        )
+
+    logger.info(
+        "Chroma: using HttpClient (host=%s, port=%s)",
+        settings.CHROMA_HOST,
+        settings.CHROMA_PORT,
+    )
+    client_kwargs: Dict[str, Any] = {
+        "host": settings.CHROMA_HOST,
+        "port": settings.CHROMA_PORT,
+        "ssl": getattr(settings, "CHROMA_SSL", False),
+    }
+    token = getattr(settings, "CHROMA_AUTH_TOKEN", "")
+    if token:
+        client_kwargs["headers"] = {"Authorization": f"Bearer {token}"}
+    return chromadb.HttpClient(**client_kwargs)
+
+
+def get_chroma_client():
+    """Return the active Chroma client (CloudClient or HttpClient), creating it once and caching it."""
     global _chroma_client
     if _chroma_client is None:
-        client_kwargs: Dict[str, Any] = {
-            "host": settings.CHROMA_HOST,
-            "port": settings.CHROMA_PORT,
-            "ssl": getattr(settings, "CHROMA_SSL", False),
-        }
-        token = getattr(settings, "CHROMA_AUTH_TOKEN", "")
-        if token:
-            client_kwargs["headers"] = {"Authorization": f"Bearer {token}"}
-
-        _chroma_client = chromadb.HttpClient(**client_kwargs)
+        _chroma_client = _build_chroma_client()
     return _chroma_client
 
 

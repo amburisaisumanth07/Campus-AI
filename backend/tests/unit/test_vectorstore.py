@@ -172,3 +172,152 @@ def test_similarity_search(mock_get_collection):
     assert hits[0]["document_id"] == 1
     assert hits[0]["title"] == "Test Doc"
     assert hits[0]["score"] == 0.9
+
+
+# ---------------------------------------------------------------------------
+# Chroma Cloud client configuration tests
+# ---------------------------------------------------------------------------
+
+class TestCloudClientConfiguration:
+    """
+    Unit tests verifying that _build_chroma_client() selects the correct
+    Chroma client based on environment settings.
+
+    All tests use mocks — no real Chroma Cloud or HTTP connections are made.
+    """
+
+    def setup_method(self):
+        """Reset the module-level client cache before every test."""
+        vectorstore._chroma_client = None
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_cloud_client_used_when_api_key_set(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """CloudClient is instantiated (and HttpClient is NOT) when CHROMA_API_KEY is set."""
+        mock_settings.CHROMA_API_KEY = "test-api-key-abc123"
+        mock_settings.CHROMA_TENANT = "my-tenant"
+        mock_settings.CHROMA_DATABASE = "campusai"
+
+        client = vectorstore._build_chroma_client()
+
+        mock_cloud_client.assert_called_once_with(
+            api_key="test-api-key-abc123",
+            tenant="my-tenant",
+            database="campusai",
+        )
+        mock_http_client.assert_not_called()
+        assert client is mock_cloud_client.return_value
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_http_client_used_when_no_api_key(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """HttpClient is instantiated (and CloudClient is NOT) when CHROMA_API_KEY is empty."""
+        mock_settings.CHROMA_API_KEY = ""
+        mock_settings.CHROMA_HOST = "localhost"
+        mock_settings.CHROMA_PORT = 8001
+        mock_settings.CHROMA_SSL = False
+        mock_settings.CHROMA_AUTH_TOKEN = ""
+
+        client = vectorstore._build_chroma_client()
+
+        mock_http_client.assert_called_once_with(
+            host="localhost",
+            port=8001,
+            ssl=False,
+        )
+        mock_cloud_client.assert_not_called()
+        assert client is mock_http_client.return_value
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_cloud_client_uses_correct_database(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """CloudClient receives the configured CHROMA_DATABASE (defaults to 'campusai')."""
+        mock_settings.CHROMA_API_KEY = "key-xyz"
+        mock_settings.CHROMA_TENANT = "campus-tenant"
+        mock_settings.CHROMA_DATABASE = "campusai"
+
+        vectorstore._build_chroma_client()
+
+        _, call_kwargs = mock_cloud_client.call_args
+        assert call_kwargs["database"] == "campusai"
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_http_client_fallback_with_ssl_and_token(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """Local HttpClient path passes ssl=True and Authorization header when configured."""
+        mock_settings.CHROMA_API_KEY = ""
+        mock_settings.CHROMA_HOST = "chroma.internal"
+        mock_settings.CHROMA_PORT = 8001
+        mock_settings.CHROMA_SSL = True
+        mock_settings.CHROMA_AUTH_TOKEN = "secret-token"
+
+        vectorstore._build_chroma_client()
+
+        mock_http_client.assert_called_once_with(
+            host="chroma.internal",
+            port=8001,
+            ssl=True,
+            headers={"Authorization": "Bearer secret-token"},
+        )
+        mock_cloud_client.assert_not_called()
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_get_chroma_client_caches_cloud_client(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """get_chroma_client() returns the same CloudClient instance on repeated calls."""
+        mock_settings.CHROMA_API_KEY = "key-for-caching"
+        mock_settings.CHROMA_TENANT = "t"
+        mock_settings.CHROMA_DATABASE = "campusai"
+
+        c1 = vectorstore.get_chroma_client()
+        c2 = vectorstore.get_chroma_client()
+
+        assert c1 is c2
+        assert mock_cloud_client.call_count == 1  # built only once
+
+    @patch("backend.app.rag.vectorstore.chromadb.CloudClient")
+    @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
+    @patch("backend.app.rag.vectorstore.settings")
+    def test_cloud_client_sanitizes_empty_and_whitespace_tenant_database(
+        self, mock_settings, mock_http_client, mock_cloud_client
+    ):
+        """CloudClient receives None when tenant or database are empty or whitespace-only."""
+        mock_settings.CHROMA_API_KEY = "test-api-key"
+
+        # Case 1: Empty strings
+        mock_settings.CHROMA_TENANT = ""
+        mock_settings.CHROMA_DATABASE = ""
+        vectorstore._build_chroma_client()
+        mock_cloud_client.assert_called_with(
+            api_key="test-api-key",
+            tenant=None,
+            database=None,
+        )
+
+        # Case 2: Whitespace-only strings
+        mock_cloud_client.reset_mock()
+        mock_settings.CHROMA_TENANT = "   "
+        mock_settings.CHROMA_DATABASE = " \t "
+        vectorstore._build_chroma_client()
+        mock_cloud_client.assert_called_with(
+            api_key="test-api-key",
+            tenant=None,
+            database=None,
+        )
+
+
