@@ -31,12 +31,13 @@ def _build_chroma_client():
     - Otherwise: returns a ``chromadb.HttpClient`` for the local Chroma service
       (localhost:8001 by default), preserving SSL and auth-token support.
     """
-    api_key = getattr(settings, "CHROMA_API_KEY", "")
+    raw_api_key = getattr(settings, "CHROMA_API_KEY", "") or ""
+    api_key = raw_api_key.strip().strip("'\"")
     if api_key:
         raw_tenant = getattr(settings, "CHROMA_TENANT", "") or ""
         raw_database = getattr(settings, "CHROMA_DATABASE", "") or ""
-        tenant = raw_tenant.strip() if raw_tenant.strip() else None
-        database = raw_database.strip() if raw_database.strip() else None
+        tenant = raw_tenant.strip().strip("'\"") if raw_tenant.strip() else None
+        database = raw_database.strip().strip("'\"") if raw_database.strip() else None
         logger.info(
             "Chroma: using CloudClient (tenant=%s, database=%s)",
             tenant,

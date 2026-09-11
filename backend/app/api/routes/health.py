@@ -52,10 +52,11 @@ def chroma_health_check():
     from backend.app.core.config import settings
     from backend.app.rag import vectorstore
 
-    has_api_key = bool(settings.CHROMA_API_KEY)
-    tenant_val = settings.CHROMA_TENANT or "default_tenant"
-    db_val = settings.CHROMA_DATABASE or "default_database"
-    collection_name = settings.CHROMA_COLLECTION or "campus_docs"
+    raw_key = (settings.CHROMA_API_KEY or "").strip().strip("'\"")
+    has_api_key = bool(raw_key)
+    tenant_val = (settings.CHROMA_TENANT or "default_tenant").strip().strip("'\"")
+    db_val = (settings.CHROMA_DATABASE or "default_database").strip().strip("'\"")
+    collection_name = (settings.CHROMA_COLLECTION or "campus_docs").strip().strip("'\"")
 
     diagnostic = {
         "has_chroma_api_key": has_api_key,
