@@ -45,7 +45,7 @@ def database_health_check(db: Session = Depends(get_db)):
 
 
 @router.get("/chroma")
-def chroma_health_check():
+def chroma_health_check(reload: bool = False):
     """
     Diagnostic endpoint to verify Chroma connectivity and settings without exposing secrets.
     """
@@ -72,7 +72,7 @@ def chroma_health_check():
     }
 
     try:
-        client = vectorstore.get_chroma_client()
+        client = vectorstore.get_chroma_client(force_reload=reload)
         diagnostic["client_init"] = True
 
         coll = vectorstore.get_collection(collection_name)

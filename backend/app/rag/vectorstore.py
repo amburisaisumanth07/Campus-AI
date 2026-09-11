@@ -65,10 +65,10 @@ def _build_chroma_client():
     return chromadb.HttpClient(**client_kwargs)
 
 
-def get_chroma_client():
+def get_chroma_client(force_reload: bool = False):
     """Return the active Chroma client (CloudClient or HttpClient), creating it once and caching it."""
     global _chroma_client
-    if _chroma_client is None:
+    if _chroma_client is None or force_reload:
         _chroma_client = _build_chroma_client()
     return _chroma_client
 
@@ -78,10 +78,10 @@ import time
 
 def get_collection(collection_name: Optional[str] = None) -> chromadb.Collection:
     """Get or create the ChromaDB collection configured with cosine distance using cached HTTP client."""
-    client = get_chroma_client()
     target_collection = collection_name or settings.CHROMA_COLLECTION
     for attempt in range(4):
         try:
+            client = get_chroma_client(force_reload=(attempt > 0))
             return client.get_or_create_collection(
                 name=target_collection,
                 metadata={"hnsw:space": "cosine"},
@@ -91,6 +91,7 @@ def get_collection(collection_name: Optional[str] = None) -> chromadb.Collection
                 raise
             logger.warning(f"Chroma get_or_create_collection connection attempt {attempt + 1} failed: {exc}. Retrying in 2.0s...")
             time.sleep(2.0)
+    client = get_chroma_client(force_reload=True)
     return client.get_or_create_collection(
         name=target_collection,
         metadata={"hnsw:space": "cosine"},
