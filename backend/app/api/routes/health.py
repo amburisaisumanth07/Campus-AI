@@ -60,7 +60,10 @@ def chroma_health_check(reload: bool = False):
 
     diagnostic = {
         "has_chroma_api_key": has_api_key,
+        "api_key_length": len(raw_key),
+        "api_key_prefix": raw_key[:3] if raw_key else "",
         "chroma_tenant_configured": bool(settings.CHROMA_TENANT),
+        "chroma_tenant": tenant_val,
         "chroma_database": db_val,
         "chroma_collection": collection_name,
         "mode": "CloudClient" if has_api_key else "HttpClient",
