@@ -35,6 +35,9 @@ coverage/
 *.sqlite3
 *.db
 
+# Database dumps
+*.sql
+
 # Uploaded documents (never commit college PDFs)
 backend/data/documents/
 data/documents/

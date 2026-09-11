@@ -9,6 +9,8 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
+
 
 
 # revision identifiers, used by Alembic.
@@ -56,7 +58,7 @@ def upgrade() -> None:
         sa.Column('max_pages', sa.Integer(), nullable=False, server_default='50'),
         sa.Column('last_checked_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('last_successful_sync_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('status', sa.Enum('ACTIVE', 'IDLE', 'SYNCING', 'ERROR', 'DISABLED', name='website_source_status', create_type=False), nullable=False, server_default='IDLE'),
+        sa.Column('status', PG_ENUM('ACTIVE', 'IDLE', 'SYNCING', 'ERROR', 'DISABLED', name='website_source_status', create_type=False, _create_events=False), nullable=False, server_default='IDLE'),
         sa.Column('last_error', sa.Text(), nullable=True),
         sa.Column('created_by_id', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -74,7 +76,7 @@ def upgrade() -> None:
         sa.Column('source_id', sa.Integer(), nullable=False),
         sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('status', sa.Enum('SUCCESS', 'FAILED', 'IN_PROGRESS', name='sync_status', create_type=False), nullable=False, server_default='IN_PROGRESS'),
+        sa.Column('status', PG_ENUM('SUCCESS', 'FAILED', 'IN_PROGRESS', name='sync_status', create_type=False, _create_events=False), nullable=False, server_default='IN_PROGRESS'),
         sa.Column('documents_discovered', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('documents_added', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('documents_updated', sa.Integer(), nullable=False, server_default='0'),
@@ -88,7 +90,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_website_sync_history_source_id'), 'website_sync_history', ['source_id'], unique=False)
 
     # 4. Alter documents table
-    op.add_column('documents', sa.Column('source_type', sa.Enum('MANUAL_UPLOAD', 'OFFICIAL_WEBSITE', name='source_type', create_type=False), nullable=False, server_default='MANUAL_UPLOAD'))
+    op.add_column('documents', sa.Column('source_type', PG_ENUM('MANUAL_UPLOAD', 'OFFICIAL_WEBSITE', name='source_type', create_type=False, _create_events=False), nullable=False, server_default='MANUAL_UPLOAD'))
     op.add_column('documents', sa.Column('source_url', sa.String(length=1000), nullable=True))
     op.add_column('documents', sa.Column('source_hash', sa.String(length=64), nullable=True))
     op.add_column('documents', sa.Column('website_source_id', sa.Integer(), nullable=True))
@@ -119,3 +121,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_website_sources_created_by_id'), table_name='website_sources')
     op.drop_index(op.f('ix_website_sources_id'), table_name='website_sources')
     op.drop_table('website_sources')
+
+    op.execute(sa.text("DROP TYPE IF EXISTS source_type"))
+    op.execute(sa.text("DROP TYPE IF EXISTS sync_status"))
+    op.execute(sa.text("DROP TYPE IF EXISTS website_source_status"))
+

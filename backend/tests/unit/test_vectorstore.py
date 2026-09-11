@@ -4,8 +4,14 @@ from unittest.mock import MagicMock, patch
 from backend.app.rag import vectorstore
 
 
+@patch("backend.app.rag.vectorstore.settings")
 @patch("backend.app.rag.vectorstore.chromadb.HttpClient")
-def test_get_chroma_client(mock_http_client):
+def test_get_chroma_client(mock_http_client, mock_settings):
+    mock_settings.CHROMA_API_KEY = ""
+    mock_settings.CHROMA_HOST = "localhost"
+    mock_settings.CHROMA_PORT = 8001
+    mock_settings.CHROMA_SSL = False
+    mock_settings.CHROMA_AUTH_TOKEN = ""
     vectorstore._chroma_client = None
     client = vectorstore.get_chroma_client()
     mock_http_client.assert_called_once()

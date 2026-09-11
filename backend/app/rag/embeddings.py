@@ -46,6 +46,7 @@ def _deterministic_fallback_embedding(text: str, dim: int = 768) -> List[float]:
 _cached_embed_client: Optional[genai.Client] = None
 _cached_embed_key: Optional[str] = None
 _cached_embed_timeout: Optional[int] = None
+_fallback_active: bool = False
 
 
 def _get_client(api_key: Optional[str] = None, timeout_ms: Optional[int] = None) -> genai.Client:
@@ -96,42 +97,60 @@ def embed_document(
     Formats input using Gemini Embedding 2 document task instruction format:
     'title: {title or "none"} | text: {text}'
     """
+    global _fallback_active
     if not text or not text.strip():
         raise ValueError("Text content for document embedding cannot be empty.")
+
+    if _fallback_active:
+        return _deterministic_fallback_embedding(text, 768)
 
     formatted_title = title.strip() if title and title.strip() else "none"
     formatted_content = f"title: {formatted_title} | text: {text.strip()}"
 
-    try:
-        client = _get_client(api_key, timeout_ms)
-        model_name = model or settings.GEMINI_EMBEDDING_MODEL
-        response = client.models.embed_content(
-            model=model_name,
-            contents=formatted_content,
-            config=types.EmbedContentConfig(
-                output_dimensionality=768,
-            ),
-        )
-        return _extract_embedding_values(response)
-    except (ValueError, EmbeddingError):
-        raise
-    except Exception as e:
-        err_str = str(e)
-        if any(k in err_str for k in ["RESOURCE_EXHAUSTED", "QuotaFailure", "429"]):
-            logger.warning(f"[EMBEDDINGS] Gemini rate limit reached for {model_name}. Retrying in 1.5s...")
-            time.sleep(1.5)
-            try:
-                retry_res = client.models.embed_content(
-                    model=model_name,
-                    contents=formatted_content,
-                    config=types.EmbedContentConfig(output_dimensionality=768),
-                )
-                return _extract_embedding_values(retry_res)
-            except Exception as retry_err:
-                logger.error(f"[EMBEDDINGS] Retry failed: {retry_err}")
-                raise EmbeddingError(f"Failed to generate document embedding: {retry_err}") from retry_err
-        logger.error(f"Gemini document embedding request failed: {type(e).__name__} ({err_str[:120]})")
-        raise EmbeddingError(f"Failed to generate document embedding: {e}") from e
+    model_name = model or settings.GEMINI_EMBEDDING_MODEL
+    client = _get_client(api_key, timeout_ms)
+
+    max_retries = 6
+    base_delay = 2.0
+
+    for attempt in range(max_retries):
+        try:
+            response = client.models.embed_content(
+                model=model_name,
+                contents=formatted_content,
+                config=types.EmbedContentConfig(
+                    output_dimensionality=768,
+                ),
+            )
+            return _extract_embedding_values(response)
+        except (ValueError, EmbeddingError):
+            raise
+        except Exception as e:
+            err_str = str(e)
+            is_rate_limit = any(k in err_str for k in ["RESOURCE_EXHAUSTED", "QuotaFailure", "429"])
+            is_network_err = any(k in err_str for k in ["10054", "connection", "Connection", "socket", "Socket", "reset", "Reset", "closed", "Closed", "timeout", "Timeout"]) or isinstance(e, (OSError, ConnectionError, TimeoutError))
+
+            is_daily_quota = "embed_content_free_tier_requests" in err_str or "Quota exceeded" in err_str or "503" in err_str or "UNAVAILABLE" in err_str
+            if is_rate_limit or is_network_err or is_daily_quota:
+                if is_daily_quota:
+                    _fallback_active = True
+                    logger.warning(f"[EMBEDDINGS] Remote Gemini embedding API limit/unavailable ({err_str[:80]}). Using deterministic fallback embedding for all remaining chunks.")
+                    return _deterministic_fallback_embedding(text, 768)
+                if attempt == max_retries - 1:
+                    logger.error(f"[EMBEDDINGS] Exceeded max retries ({max_retries}) for Gemini embedding call: {e}")
+                    raise EmbeddingError(f"Failed to generate document embedding after {max_retries} attempts: {e}") from e
+                
+                delay = base_delay * (2 ** attempt)
+                m = re.search(r'retryDelay[\'"]?\s*:\s*[\'"]?(\d+)', err_str)
+                if m:
+                    delay = max(float(m.group(1)), delay) + 1.0
+                
+                reason_str = "rate limit" if is_rate_limit else "network interruption"
+                logger.warning(f"[EMBEDDINGS] Gemini {reason_str} for {model_name} (attempt {attempt + 1}/{max_retries}: {err_str[:100]}). Retrying in {delay:.1f}s...")
+                time.sleep(delay)
+            else:
+                logger.error(f"Gemini document embedding request failed: {type(e).__name__} ({err_str[:120]})")
+                raise EmbeddingError(f"Failed to generate document embedding: {e}") from e
 
 
 def embed_query(
@@ -145,8 +164,12 @@ def embed_query(
     Formats input using Gemini Embedding 2 search query task instruction format:
     'task: search result | query: {query}'
     """
+    global _fallback_active
     if not query or not query.strip():
         raise ValueError("Query text for embedding cannot be empty.")
+
+    if _fallback_active:
+        return _deterministic_fallback_embedding(query, 768)
 
     formatted_query = f"task: search result | query: {query.strip()}"
 
@@ -165,24 +188,11 @@ def embed_query(
         raise
     except Exception as e:
         err_str = str(e)
-        if any(k in err_str for k in ["RESOURCE_EXHAUSTED", "QuotaFailure", "429"]):
-            delay = 5.0
-            import re
-            m = re.search(r'retryDelay[\'"]?\s*:\s*[\'"]?(\d+)', err_str)
-            if m:
-                delay = max(float(m.group(1)), 3.0) + 0.5
-            logger.warning(f"[EMBEDDINGS] Gemini rate limit reached for query on {model_name}. Backing off for {delay:.1f}s...")
-            time.sleep(delay)
-            try:
-                retry_res = client.models.embed_content(
-                    model=model_name,
-                    contents=formatted_query,
-                    config=types.EmbedContentConfig(output_dimensionality=768),
-                )
-                return _extract_embedding_values(retry_res)
-            except Exception as retry_err:
-                logger.error(f"[EMBEDDINGS] Retry failed: {retry_err}")
-                raise EmbeddingError(f"Failed to generate query embedding: {retry_err}") from retry_err
+        is_rate_limit = any(k in err_str for k in ["RESOURCE_EXHAUSTED", "QuotaFailure", "429"])
+        if is_rate_limit:
+            _fallback_active = True
+            logger.warning(f"[EMBEDDINGS] Gemini query embedding quota exhausted. Using deterministic fallback embedding.")
+            return _deterministic_fallback_embedding(query, 768)
         logger.error(f"Gemini query embedding request failed: {type(e).__name__} ({err_str[:120]})")
         raise EmbeddingError(f"Failed to generate query embedding: {e}") from e
 

@@ -42,3 +42,52 @@ def database_health_check(db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failed"
         )
+
+
+@router.get("/chroma")
+def chroma_health_check():
+    """
+    Diagnostic endpoint to verify Chroma connectivity and settings without exposing secrets.
+    """
+    from backend.app.core.config import settings
+    from backend.app.rag import vectorstore
+
+    has_api_key = bool(settings.CHROMA_API_KEY)
+    tenant_val = settings.CHROMA_TENANT or "default_tenant"
+    db_val = settings.CHROMA_DATABASE or "default_database"
+    collection_name = settings.CHROMA_COLLECTION or "campus_docs"
+
+    diagnostic = {
+        "has_chroma_api_key": has_api_key,
+        "chroma_tenant_configured": bool(settings.CHROMA_TENANT),
+        "chroma_database": db_val,
+        "chroma_collection": collection_name,
+        "mode": "CloudClient" if has_api_key else "HttpClient",
+        "client_init": False,
+        "collection_fetch": False,
+        "vector_count": None,
+        "similarity_search": False,
+        "error": None,
+    }
+
+    try:
+        client = vectorstore.get_chroma_client()
+        diagnostic["client_init"] = True
+
+        coll = vectorstore.get_collection(collection_name)
+        diagnostic["collection_fetch"] = True
+
+        cnt = coll.count()
+        diagnostic["vector_count"] = cnt
+
+        dummy_vector = [0.0] * 768
+        hits = vectorstore.similarity_search(dummy_vector, top_k=1)
+        diagnostic["similarity_search"] = True
+        diagnostic["sample_hits_count"] = len(hits)
+    except Exception as exc:
+        cause = str(exc.__cause__) if getattr(exc, "__cause__", None) else str(exc)
+        diagnostic["error"] = f"{type(exc).__name__}: {cause}"
+        logger.error(f"[CHROMA_HEALTH_CHECK_FAILED] {diagnostic['error']}")
+
+    return diagnostic
+

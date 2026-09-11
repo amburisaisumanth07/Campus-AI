@@ -1,7 +1,7 @@
 """update website sources state string
 
 Revision ID: 479e6475fe18
-Revises: 4c91d830ef12
+Revises: 3b5a8c24d678
 Create Date: 2026-08-28 22:10:21.120160
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '479e6475fe18'
-down_revision: Union[str, Sequence[str], None] = '4c91d830ef12'
+down_revision: Union[str, Sequence[str], None] = '3b5a8c24d678'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -42,9 +42,6 @@ def upgrade() -> None:
                nullable=False,
                existing_server_default=sa.text('true'))
     op.create_index(op.f('ix_departments_source_hash'), 'departments', ['source_hash'], unique=False)
-    op.create_index(op.f('ix_documents_source_hash'), 'documents', ['source_hash'], unique=False)
-    op.create_index(op.f('ix_documents_website_source_id'), 'documents', ['website_source_id'], unique=False)
-    op.create_foreign_key('fk_doc_active_version', 'documents', 'document_versions', ['active_version_id'], ['id'], use_alter=True)
     op.alter_column('examinations', 'is_valid',
                existing_type=sa.BOOLEAN(),
                nullable=False,
@@ -95,9 +92,6 @@ def downgrade() -> None:
                existing_type=sa.BOOLEAN(),
                nullable=True,
                existing_server_default=sa.text('true'))
-    op.drop_constraint('fk_doc_active_version', 'documents', type_='foreignkey')
-    op.drop_index(op.f('ix_documents_website_source_id'), table_name='documents')
-    op.drop_index(op.f('ix_documents_source_hash'), table_name='documents')
     op.drop_index(op.f('ix_departments_source_hash'), table_name='departments')
     op.alter_column('departments', 'is_active',
                existing_type=sa.BOOLEAN(),
@@ -120,3 +114,4 @@ def downgrade() -> None:
                nullable=True,
                existing_server_default=sa.text('true'))
     # ### end Alembic commands ###
+

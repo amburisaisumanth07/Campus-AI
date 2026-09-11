@@ -147,7 +147,10 @@ def retrieve_context(
         )
         logger.info(f"[RETRIEVAL_SEARCH] Raw candidates retrieved={len(raw_hits)}")
     except Exception as exc:
-        logger.error(f"[RETRIEVAL_ERROR] Stage=vectorstore_search failed: {type(exc).__name__}: {exc}")
+        logger.error(
+            f"[RETRIEVAL_ERROR] Stage=vectorstore_search failed: exc_type={type(exc).__name__}, exc={exc}",
+            exc_info=True,
+        )
         raise VectorStoreError(f"Vector store search failed: {exc}") from exc
     search_ms = (time.perf_counter() - t0_search) * 1000
 

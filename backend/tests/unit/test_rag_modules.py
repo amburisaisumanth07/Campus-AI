@@ -68,3 +68,32 @@ def test_pipeline_run(mock_generate, mock_retrieve):
     assert len(result["citations"]) == 1
     assert result["citations"][0]["doc_id"] == 1
     assert result["had_context"] is True
+
+
+@patch("backend.app.rag.retrieval.retrieve_context")
+def test_pipeline_vectorstore_error_not_found(mock_retrieve):
+    from backend.app.rag.retrieval import VectorStoreError
+
+    mock_retrieve.side_effect = VectorStoreError("Vector store search failed: Collection campus_docs does not exist.")
+
+    result = pipeline.run_pipeline("What is the attendance policy?")
+
+    assert result["status"] == "RETRIEVAL_ERROR"
+    assert "synchronized" in result["answer"].lower() or "retrieved" in result["answer"].lower()
+    assert result["grounded"] is False
+    assert result["retrieval_error"] is True
+
+
+@patch("backend.app.rag.retrieval.retrieve_context")
+def test_pipeline_vectorstore_error_generic(mock_retrieve):
+    from backend.app.rag.retrieval import VectorStoreError
+
+    mock_retrieve.side_effect = VectorStoreError("Vector store search failed: Connection error.")
+
+    result = pipeline.run_pipeline("What is the attendance policy?")
+
+    assert result["status"] == "DATABASE_ERROR"
+    assert "database error" in result["answer"].lower()
+    assert result["grounded"] is False
+    assert result["retrieval_error"] is True
+

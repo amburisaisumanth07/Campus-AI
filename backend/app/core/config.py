@@ -36,12 +36,17 @@ class Settings(BaseSettings):
     GEMINI_TEMPERATURE: float = 0.0
     GEMINI_MAX_OUTPUT_TOKENS: int = 2048
 
-    # ChromaDB (HttpClient service)
+    # ChromaDB (HttpClient service — local development)
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8001
     CHROMA_SSL: bool = False
     CHROMA_AUTH_TOKEN: str = ""
     CHROMA_COLLECTION: str = "campus_docs"
+
+    # Chroma Cloud (production — leave blank for local HTTP)
+    CHROMA_API_KEY: str = ""
+    CHROMA_TENANT: str = ""
+    CHROMA_DATABASE: str = "campusai"
 
     # RAG tuning
     RAG_CHUNK_SIZE: int = 1000

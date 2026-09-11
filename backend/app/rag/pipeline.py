@@ -127,14 +127,22 @@ def run_pipeline(
     except VectorStoreError as exc:
         retrieval_ms = (time.perf_counter() - t0_retrieval) * 1000
         total_ms = (time.perf_counter() - t_start) * 1000
-        is_empty = "unavailable or empty" in str(exc).lower()
+        exc_str = str(exc).lower()
+        is_empty = any(
+            pattern in exc_str
+            for pattern in ["unavailable or empty", "does not exist", "not found", "404", "collection"]
+        )
         status_val = "RETRIEVAL_ERROR" if is_empty else "DATABASE_ERROR"
         user_answer = (
             "Knowledge index is currently being synchronized. Please try again shortly."
             if is_empty
             else "A database error occurred during information retrieval."
         )
-        logger.error(f"[PIPELINE_ERROR] Stage=vectorstore failed: {exc}")
+        cause_type = type(exc.__cause__).__name__ if exc.__cause__ else type(exc).__name__
+        cause_msg = str(exc.__cause__) if exc.__cause__ else str(exc)
+        logger.error(
+            f"[PIPELINE_ERROR] Stage=vectorstore failed: status={status_val}, cause_type={cause_type}, cause={cause_msg}"
+        )
         return {
             "answer": user_answer,
             "grounded": False,

@@ -72,10 +72,24 @@ def get_chroma_client():
     return _chroma_client
 
 
+import time
+
+
 def get_collection(collection_name: Optional[str] = None) -> chromadb.Collection:
     """Get or create the ChromaDB collection configured with cosine distance using cached HTTP client."""
     client = get_chroma_client()
     target_collection = collection_name or settings.CHROMA_COLLECTION
+    for attempt in range(4):
+        try:
+            return client.get_or_create_collection(
+                name=target_collection,
+                metadata={"hnsw:space": "cosine"},
+            )
+        except Exception as exc:
+            if attempt == 3:
+                raise
+            logger.warning(f"Chroma get_or_create_collection connection attempt {attempt + 1} failed: {exc}. Retrying in 2.0s...")
+            time.sleep(2.0)
     return client.get_or_create_collection(
         name=target_collection,
         metadata={"hnsw:space": "cosine"},
@@ -168,12 +182,25 @@ def upsert_chunks(
 
     batch_size = 100
     for i in range(0, len(ids), batch_size):
-        collection.upsert(
-            ids=ids[i : i + batch_size],
-            documents=documents[i : i + batch_size],
-            embeddings=embeddings[i : i + batch_size],
-            metadatas=metadatas[i : i + batch_size],
-        )
+        batch_ids = ids[i : i + batch_size]
+        batch_docs = documents[i : i + batch_size]
+        batch_embs = embeddings[i : i + batch_size]
+        batch_meta = metadatas[i : i + batch_size]
+
+        for attempt in range(4):
+            try:
+                collection.upsert(
+                    ids=batch_ids,
+                    documents=batch_docs,
+                    embeddings=batch_embs,
+                    metadatas=batch_meta,
+                )
+                break
+            except Exception as exc:
+                if attempt == 3:
+                    raise
+                logger.warning(f"Chroma upsert connection attempt {attempt + 1} failed: {exc}. Retrying in 2.0s...")
+                time.sleep(2.0)
 
     logger.info(f"Upserted {len(ids)} chunks into ChromaDB HTTP vector store.")
     return len(ids)
