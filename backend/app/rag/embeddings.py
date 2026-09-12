@@ -104,8 +104,7 @@ def embed_document(
     if _fallback_active:
         return _deterministic_fallback_embedding(text, 768)
 
-    formatted_title = title.strip() if title and title.strip() else "none"
-    formatted_content = f"title: {formatted_title} | text: {text.strip()}"
+    formatted_content = text.strip()
 
     model_name = model or settings.GEMINI_EMBEDDING_MODEL
     client = _get_client(api_key, timeout_ms)
@@ -161,8 +160,7 @@ def embed_query(
 ) -> List[float]:
     """
     Generate a 768-dimensional vector embedding for a user search query.
-    Formats input using Gemini Embedding 2 search query task instruction format:
-    'task: search result | query: {query}'
+    Uses clean unprefixed text representation to match document embedding space.
     """
     global _fallback_active
     if not query or not query.strip():
@@ -171,7 +169,7 @@ def embed_query(
     if _fallback_active:
         return _deterministic_fallback_embedding(query, 768)
 
-    formatted_query = f"task: search result | query: {query.strip()}"
+    formatted_query = query.strip()
 
     try:
         client = _get_client(api_key, timeout_ms)

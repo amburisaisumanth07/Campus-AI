@@ -37,7 +37,7 @@ def test_successful_document_embedding(mock_genai_client, monkeypatch):
 
     call_args = mock_genai_client.models.embed_content.call_args
     assert call_args.kwargs["model"] == settings.GEMINI_EMBEDDING_MODEL
-    assert call_args.kwargs["contents"] == "title: Attendance Policy | text: Sample document text for embedding."
+    assert call_args.kwargs["contents"] == "Sample document text for embedding."
     assert call_args.kwargs["config"].output_dimensionality == 768
     assert not hasattr(call_args.kwargs["config"], "task_type") or getattr(call_args.kwargs["config"], "task_type", None) is None
 
@@ -56,7 +56,7 @@ def test_successful_query_embedding(mock_genai_client, monkeypatch):
 
     call_args = mock_genai_client.models.embed_content.call_args
     assert call_args.kwargs["model"] == settings.GEMINI_EMBEDDING_MODEL
-    assert call_args.kwargs["contents"] == "task: search result | query: What is the attendance policy?"
+    assert call_args.kwargs["contents"] == "What is the attendance policy?"
     assert call_args.kwargs["config"].output_dimensionality == 768
 
 
@@ -144,3 +144,35 @@ def test_embedding_dimensionality(mock_genai_client, monkeypatch):
 
     assert len(doc_vec) == dim
     assert len(query_vec) == dim
+
+
+def test_attendance_regulations_ranking_regression(mock_genai_client, monkeypatch):
+    """
+    Regression test ensuring that document and query embeddings use identical
+    unprefixed content formatting so that attendance regulations rank above unrelated chunks.
+    """
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-api-key")
+    mock_response = MagicMock()
+    mock_response.embedding.values = [0.1] * 768
+    mock_genai_client.models.embed_content.return_value = mock_response
+
+    test_queries = [
+        "What is the minimum attendance requirement for semester exams?",
+        "What attendance is required for semester exams?",
+        "How much attendance is needed to write end semester exams?",
+        "What happens if attendance is below 75%?",
+    ]
+
+    attendance_doc_chunk = (
+        "A student shall be eligible to appear for semester end examinations if he/she acquires "
+        "a minimum of 75% of attendance in aggregate of all subjects. Condonation of shortage of attendance "
+        "in aggregate up to 10% (65% and above and below 75%) may be granted on medical grounds."
+    )
+
+    doc_vec = embed_document(attendance_doc_chunk, title="MITS Academic Regulations")
+    assert mock_genai_client.models.embed_content.call_args.kwargs["contents"] == attendance_doc_chunk
+
+    for q in test_queries:
+        q_vec = embed_query(q)
+        assert mock_genai_client.models.embed_content.call_args.kwargs["contents"] == q
+
