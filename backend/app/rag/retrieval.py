@@ -237,7 +237,29 @@ def retrieve_context(
         is_hod_query = any(k in query_lower for k in ["hod", "head of", "head of the", "heads of", "department head", "department heads", "head"])
         if is_hod_query and "departmentheads" in item.get("source_url", ""):
             boost += 0.20
-            
+
+        # Authoritative Academic Regulations boosting for attendance / grading queries
+        is_reg_query = any(k in query_lower for k in ["attendance", "condonation", "detention", "regulation", "grading", "sgpa", "cgpa", "r20", "r25"])
+        title_lower = item.get("title", "").lower()
+        url_lower = item.get("source_url", "").lower()
+        if is_reg_query:
+            if any(term in title_lower or term in url_lower for term in ["academic-regulations", "regulations", "attendance", "curriculum"]):
+                boost += 0.25
+            elif any(term in title_lower for term in ["project", "student project", "report", "dissertation"]):
+                boost -= 0.20
+
+        # Authoritative Exam Cell boosting for examination queries
+        is_exam_query = any(k in query_lower for k in ["exam", "examination", "revaluation", "recounting", "cie", "see", "malpractice", "hall ticket"])
+        if is_exam_query:
+            if any(term in title_lower or term in url_lower for term in ["examination", "exam", "coe", "evaluat", "revaluat"]):
+                boost += 0.20
+
+        # Authoritative Placement boosting
+        is_placement_query = any(k in query_lower for k in ["placement", "recruiter", "package", "lpa", "highest package", "internship"])
+        if is_placement_query:
+            if any(term in title_lower or term in url_lower for term in ["placement", "recruit", "career"]):
+                boost += 0.20
+
         # Boost newer documents or current status if metadata exists
         is_current = str(meta.get("is_current", "")).lower() == "true"
         if is_current:
@@ -247,8 +269,6 @@ def retrieve_context(
             boost += 0.10
             
         item["score"] += boost
-        # Re-calculate distance based on boosted score for sorting
-        item["distance"] = max(0.0, 1.0 - item["score"])
 
     # 6. Preserve relevance ordering (distance ascending / score descending) and limit to top_k
     filtered.sort(key=lambda x: (-x["score"], x["distance"]))

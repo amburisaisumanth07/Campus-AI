@@ -23,7 +23,7 @@ def test_alembic_migration_chain_integrity():
     
     heads = script.get_heads()
     assert len(heads) == 1, f"Expected 1 head revision, got {heads}"
-    assert heads[0] == "2f8b1c4e9d01", f"Expected head 2f8b1c4e9d01, got {heads[0]}"
+    assert heads[0] == "5a1b2c3d4e5f", f"Expected head 5a1b2c3d4e5f, got {heads[0]}"
     
     bases = script.get_bases()
     assert len(bases) == 1, f"Expected 1 base revision, got {bases}"
@@ -31,7 +31,7 @@ def test_alembic_migration_chain_integrity():
     
     # Walk revisions from head to base
     revisions = list(script.walk_revisions())
-    assert len(revisions) == 8, f"Expected 8 migration revisions, got {len(revisions)}"
+    assert len(revisions) == 9, f"Expected 9 migration revisions, got {len(revisions)}"
 
 
 def test_alembic_offline_sql_generation(capsys):
@@ -45,7 +45,8 @@ def test_alembic_offline_sql_generation(capsys):
     assert "CREATE TABLE academic_calendar" in captured.out
     assert "CREATE TABLE departments" in captured.out
     assert "CREATE TABLE faculty" in captured.out
-    assert "UPDATE alembic_version SET version_num='2f8b1c4e9d01'" in captured.out
+    assert "CREATE TABLE people" in captured.out
+    assert "UPDATE alembic_version SET version_num='5a1b2c3d4e5f'" in captured.out
 
 
 def test_alembic_offline_downgrade_sql_generation(capsys):

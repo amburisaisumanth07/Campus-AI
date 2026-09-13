@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import (
     DateTime, String, Boolean, Integer, BigInteger, Text,
-    ForeignKey, Enum as SAEnum, sql
+    ForeignKey, Enum as SAEnum, sql, Float
 )
 
 
@@ -524,6 +524,12 @@ class Department(Base):
     hod_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("faculty.id", ondelete="SET NULL"), nullable=True
     )
+    school_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("schools.id", ondelete="SET NULL"), nullable=True
+    )
+    hod_person_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("people.id", ondelete="SET NULL"), nullable=True
+    )
     phone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     faculty: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON or formatted text
@@ -540,6 +546,11 @@ class Department(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
 
+    # Relationships
+    school_rel: Mapped[Optional["School"]] = relationship("School", back_populates="departments", foreign_keys=[school_id])
+    hod_person: Mapped[Optional["Person"]] = relationship("Person", foreign_keys=[hod_person_id])
+    programs_list: Mapped[List["Program"]] = relationship("Program", back_populates="department_rel", cascade="all, delete-orphan")
+
 
 class Faculty(Base):
     __tablename__ = "faculty"
@@ -552,6 +563,13 @@ class Faculty(Base):
     department_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    person_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("people.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    experience_years: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    specialization: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    research_interests: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    publications: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     profile_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
@@ -563,6 +581,10 @@ class Faculty(Base):
     content_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    person: Mapped[Optional["Person"]] = relationship("Person", foreign_keys=[person_id])
+    department_rel: Mapped[Optional["Department"]] = relationship("Department", foreign_keys=[department_id])
 
 
 class Placement(Base):
@@ -616,4 +638,291 @@ class ImportantLink(Base):
     last_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+
+# ── Structured College Knowledge Models ───────────────────────────────────────
+
+class Person(Base):
+    __tablename__ = "people"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Dr., Prof., Sri, etc.
+    designation: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    qualification: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    profile_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    canonical_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    leadership_roles: Mapped[List["Leadership"]] = relationship("Leadership", back_populates="person", cascade="all, delete-orphan")
+
+
+class RoleRecord(Base):
+    __tablename__ = "roles"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="GENERAL")
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class Leadership(Base):
+    __tablename__ = "leadership"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    person_id: Mapped[int] = mapped_column(ForeignKey("people.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_id: Mapped[Optional[int]] = mapped_column(ForeignKey("roles.id", ondelete="SET NULL"), nullable=True, index=True)
+    role_code: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # CHANCELLOR, VC, REGISTRAR, PRINCIPAL, DEAN, etc.
+    role_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    term_start: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    term_end: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    source_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    person: Mapped["Person"] = relationship("Person", back_populates="leadership_roles")
+
+
+class School(Base):
+    __tablename__ = "schools"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)  # COMPUTING, ENGINEERING, MANAGEMENT, SCIENCE_HUMANITIES
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    dean_person_id: Mapped[Optional[int]] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    dean_person: Mapped[Optional["Person"]] = relationship("Person", foreign_keys=[dean_person_id])
+    departments: Mapped[List["Department"]] = relationship("Department", back_populates="school_rel")
+
+
+class Program(Base):
+    __tablename__ = "programs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)  # BTECH_CSE, BTECH_ECE, MTECH_CSE, MBA, MCA, PHD
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    degree_level: Mapped[str] = mapped_column(String(50), nullable=False, default="UG", index=True)  # UG, PG, PHD, DIPLOMA
+    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
+    duration_years: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
+    eligibility: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    intake: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    regulations_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # R20, R25
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    department_rel: Mapped[Optional["Department"]] = relationship("Department", back_populates="programs_list")
+
+
+class FacultyDepartment(Base):
+    __tablename__ = "faculty_department"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.id", ondelete="CASCADE"), nullable=False, index=True)
+    department_id: Mapped[int] = mapped_column(ForeignKey("departments.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class Committee(Base):
+    __tablename__ = "committees"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)  # ACADEMIC_COUNCIL, BOS_CSE, ANTI_RAGGING, ICC, GRIEVANCE
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="STATUTORY")  # STATUTORY, ACADEMIC, WELFARE, ANTI_RAGGING, GRIEVANCE
+    purpose: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    meeting_frequency: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now(), onupdate=sql.func.now())
+
+    # Relationships
+    members: Mapped[List["CommitteeMember"]] = relationship("CommitteeMember", back_populates="committee", cascade="all, delete-orphan")
+
+
+class CommitteeMember(Base):
+    __tablename__ = "committee_members"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    committee_id: Mapped[int] = mapped_column(ForeignKey("committees.id", ondelete="CASCADE"), nullable=False, index=True)
+    person_id: Mapped[int] = mapped_column(ForeignKey("people.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_in_committee: Mapped[str] = mapped_column(String(100), nullable=False, default="Member")  # Chairperson, Member Secretary, Member
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+    # Relationships
+    committee: Mapped["Committee"] = relationship("Committee", back_populates="members")
+    person: Mapped["Person"] = relationship("Person")
+
+
+class Cell(Base):
+    __tablename__ = "cells"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)  # NSS, NCC, INNOVATION, PLACEMENT, WOMEN_CELL, COUNSELLING
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="STUDENT_SUPPORT")
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+    # Relationships
+    coordinators: Mapped[List["CellCoordinator"]] = relationship("CellCoordinator", back_populates="cell", cascade="all, delete-orphan")
+
+
+class CellCoordinator(Base):
+    __tablename__ = "cell_coordinators"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    cell_id: Mapped[int] = mapped_column(ForeignKey("cells.id", ondelete="CASCADE"), nullable=False, index=True)
+    person_id: Mapped[int] = mapped_column(ForeignKey("people.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(100), nullable=False, default="Coordinator")
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Relationships
+    cell: Mapped["Cell"] = relationship("Cell", back_populates="coordinators")
+    person: Mapped["Person"] = relationship("Person")
+
+
+class Facility(Base):
+    __tablename__ = "facilities"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="GENERAL")  # LIBRARY, HOSTEL, TRANSPORT, SPORTS, CANTEEN, MEDICAL, COUNSELLING
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    timings: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    contact_person_id: Mapped[Optional[int]] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"), nullable=True)
+    rules: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+    # Relationships
+    contact_person: Mapped[Optional["Person"]] = relationship("Person")
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    department_or_unit: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    role_or_purpose: Mapped[str] = mapped_column(String(255), nullable=False)
+    person_id: Mapped[Optional[int]] = mapped_column(ForeignKey("people.id", ondelete="SET NULL"), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+    # Relationships
+    person: Mapped[Optional["Person"]] = relationship("Person")
+
+
+class AdmissionRule(Base):
+    __tablename__ = "admissions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    program_id: Mapped[Optional[int]] = mapped_column(ForeignKey("programs.id", ondelete="CASCADE"), nullable=True, index=True)
+    academic_year: Mapped[str] = mapped_column(String(50), nullable=False, default="2026-2027", index=True)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="GENERAL")  # CONVENOR_QUOTA, MANAGEMENT_QUOTA, NRI_INTERNATIONAL, LATERAL_ENTRY
+    eligibility_criteria: Mapped[str] = mapped_column(Text, nullable=False)
+    application_process: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fee_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    entrance_exam: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # EAPCET, ICET, PGECET, GATE
+    intake: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    scholarship_info: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+    # Relationships
+    program: Mapped[Optional["Program"]] = relationship("Program")
+
+
+class AcademicRule(Base):
+    __tablename__ = "academic_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    rule_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)  # ATTENDANCE, GRADING, PROMOTION, DETENTION, CONDONATION, SGPA_CALCULATION, CGPA_CALCULATION
+    regulation_code: Mapped[str] = mapped_column(String(50), nullable=False, default="R20", index=True)  # R20, R25, AUTONOMOUS
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    threshold_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # e.g. 75.0, 65.0, 40.0
+    penalties_or_remedies: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    canonical_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    document_id: Mapped[Optional[int]] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+
+class ExamRule(Base):
+    __tablename__ = "examination_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    rule_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)  # EVALUATION, REVALUATION, RECOUNTING, MALPRACTICE, SUPPLEMENTARY, ATTENDANCE_ELIGIBILITY
+    regulation_code: Mapped[str] = mapped_column(String(50), nullable=False, default="R20")
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    see_weightage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # e.g. 60.0 or 70.0
+    cie_weightage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # e.g. 40.0 or 30.0
+    min_pass_marks: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    revaluation_deadline_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    document_id: Mapped[Optional[int]] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+
+class PlacementData(Base):
+    __tablename__ = "placement_data"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    academic_year: Mapped[str] = mapped_column(String(50), nullable=False, default="2026-2027", index=True)
+    company_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    package_lpa: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    tier_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # CORE, PRODUCT, TIER1, DREAM, SUPER_DREAM
+    role_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    eligibility_cgpa: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    eligible_branches: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    process_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    total_offers: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
+
+
+class InstitutionHistory(Base):
+    __tablename__ = "institution_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    milestone_year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="MILESTONE")  # FOUNDATION, AUTONOMY, NAAC, NBA, NIRF, DEEMED_UNIVERSITY
+    source_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql.func.now())
 

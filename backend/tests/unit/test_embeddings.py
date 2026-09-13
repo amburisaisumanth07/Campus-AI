@@ -15,11 +15,14 @@ def mock_genai_client():
     embeddings._cached_embed_client = None
     embeddings._cached_embed_key = None
     embeddings._cached_embed_timeout = None
-    with patch("backend.app.rag.embeddings.genai.Client") as mock_client_cls:
+    embeddings._fallback_active = False
+    with patch("backend.app.rag.embeddings.genai.Client") as mock_client_cls, \
+         patch("time.sleep"):
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
         yield mock_client
     embeddings._cached_embed_client = None
+    embeddings._fallback_active = False
 
 
 def test_successful_document_embedding(mock_genai_client, monkeypatch):

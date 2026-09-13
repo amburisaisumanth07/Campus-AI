@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.routes import (
     health, auth, documents, conversations, chat, feedback, sources,
-    announcements, academic_calendar, examinations, departments, placements, college_info, search
+    announcements, academic_calendar, examinations, departments, placements, college_info, search,
+    coverage
 )
 from backend.app.core.config import settings
 from backend.app.services import scheduler_service
@@ -48,6 +49,7 @@ app.include_router(health.router, prefix="/health", tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(sources.router, prefix="/api/admin/sources", tags=["Website Sources"])
+app.include_router(coverage.router, prefix="/api/admin/coverage", tags=["Admin Coverage"])
 app.include_router(conversations.router, prefix="/api/conversations", tags=["Conversations"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(feedback.router, prefix="/api/feedback", tags=["Feedback"])

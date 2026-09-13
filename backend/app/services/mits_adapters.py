@@ -21,6 +21,23 @@ from backend.app.db.models import (
     Placement,
     CollegeInfo,
     ImportantLink,
+    Person,
+    Leadership,
+    RoleRecord,
+    School,
+    Program,
+    FacultyDepartment,
+    Committee,
+    CommitteeMember,
+    Cell,
+    CellCoordinator,
+    Facility,
+    Contact,
+    AdmissionRule,
+    AcademicRule,
+    ExamRule,
+    PlacementData,
+    InstitutionHistory,
 )
 from backend.app.services.url_validator import normalize_external_url, validate_external_url
 
@@ -645,3 +662,272 @@ class MITSPlacementAdapter(BaseMITSAdapter):
                 db.commit()
                 count += 1
         return count
+
+
+# ── Structured Knowledge Adapters ─────────────────────────────────────────────
+
+class MITSLeadershipAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Chancellor, Vice-Chancellor, Registrar, Deans, etc."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            name = str(raw.get("name", "")).strip()
+            role_code = str(raw.get("role_code", "")).strip().upper()
+            role_title = str(raw.get("role_title", "")).strip() or role_code
+            if not name or not role_code:
+                continue
+
+            # Resolve or create Person
+            person = db.query(Person).filter(Person.name == name).first()
+            if not person:
+                person = Person(
+                    name=name,
+                    title=raw.get("title"),
+                    designation=raw.get("designation") or role_title,
+                    qualification=raw.get("qualification"),
+                    email=raw.get("email"),
+                    phone=raw.get("phone"),
+                    profile_url=raw.get("profile_url"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(person)
+                db.commit()
+                db.refresh(person)
+
+            # Resolve or update Leadership record
+            existing_lead = db.query(Leadership).filter(
+                (Leadership.person_id == person.id) &
+                (Leadership.role_code == role_code)
+            ).first()
+
+            if existing_lead:
+                existing_lead.role_title = role_title
+                existing_lead.is_current = raw.get("is_current", True)
+                existing_lead.order_index = raw.get("order_index", 0)
+                existing_lead.term_start = raw.get("term_start")
+                existing_lead.term_end = raw.get("term_end")
+                existing_lead.source_url = raw.get("source_url")
+                existing_lead.source_title = raw.get("source_title")
+                db.commit()
+            else:
+                lead = Leadership(
+                    person_id=person.id,
+                    role_code=role_code,
+                    role_title=role_title,
+                    order_index=raw.get("order_index", 0),
+                    is_current=raw.get("is_current", True),
+                    term_start=raw.get("term_start"),
+                    term_end=raw.get("term_end"),
+                    source_url=raw.get("source_url"),
+                    source_title=raw.get("source_title"),
+                )
+                db.add(lead)
+                db.commit()
+                count += 1
+        return count
+
+
+class MITSProgramAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Degree Programs (B.Tech, M.Tech, MBA, MCA, Ph.D.)."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            code = str(raw.get("code", "")).strip().upper()
+            name = str(raw.get("name", "")).strip()
+            degree_level = str(raw.get("degree_level", "UG")).strip().upper()
+            if not code or not name:
+                continue
+
+            dept_id = raw.get("department_id")
+            if not dept_id and raw.get("department_code"):
+                dept = db.query(Department).filter(Department.code == raw["department_code"].strip().upper()).first()
+                if dept:
+                    dept_id = dept.id
+
+            existing = db.query(Program).filter(Program.code == code).first()
+            if existing:
+                existing.name = name
+                existing.degree_level = degree_level
+                if dept_id:
+                    existing.department_id = dept_id
+                existing.duration_years = raw.get("duration_years", existing.duration_years)
+                existing.eligibility = raw.get("eligibility", existing.eligibility)
+                existing.intake = raw.get("intake", existing.intake)
+                existing.regulations_code = raw.get("regulations_code", existing.regulations_code)
+                existing.source_url = raw.get("source_url", existing.source_url)
+                db.commit()
+            else:
+                prg = Program(
+                    code=code,
+                    name=name,
+                    degree_level=degree_level,
+                    department_id=dept_id,
+                    duration_years=raw.get("duration_years", 4),
+                    eligibility=raw.get("eligibility"),
+                    intake=raw.get("intake"),
+                    regulations_code=raw.get("regulations_code", "R20"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(prg)
+                db.commit()
+                count += 1
+        return count
+
+
+class MITSFacilityAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Student Facilities (Library, Hostel, Sports, etc.)."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            name = str(raw.get("name", "")).strip()
+            category = str(raw.get("category", "GENERAL")).strip().upper()
+            if not name:
+                continue
+
+            existing = db.query(Facility).filter(Facility.name == name).first()
+            if existing:
+                existing.category = category
+                existing.description = raw.get("description", existing.description)
+                existing.location = raw.get("location", existing.location)
+                existing.timings = raw.get("timings", existing.timings)
+                existing.rules = raw.get("rules", existing.rules)
+                existing.source_url = raw.get("source_url", existing.source_url)
+                db.commit()
+            else:
+                fac = Facility(
+                    name=name,
+                    category=category,
+                    description=raw.get("description"),
+                    location=raw.get("location"),
+                    timings=raw.get("timings"),
+                    rules=raw.get("rules"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(fac)
+                db.commit()
+                count += 1
+        return count
+
+
+class MITSAcademicRuleAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Academic Regulations (Attendance 75%, Condonation, Grading)."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            rule_type = str(raw.get("rule_type", "")).strip().upper()
+            title = str(raw.get("title", "")).strip()
+            content = str(raw.get("content", "")).strip()
+            reg_code = str(raw.get("regulation_code", "R20")).strip()
+            if not rule_type or not title or not content:
+                continue
+
+            existing = db.query(AcademicRule).filter(
+                (AcademicRule.rule_type == rule_type) &
+                (AcademicRule.regulation_code == reg_code)
+            ).first()
+
+            if existing:
+                existing.title = title
+                existing.content = content
+                existing.threshold_percentage = raw.get("threshold_percentage", existing.threshold_percentage)
+                existing.penalties_or_remedies = raw.get("penalties_or_remedies", existing.penalties_or_remedies)
+                existing.source_url = raw.get("source_url", existing.source_url)
+                db.commit()
+            else:
+                rule = AcademicRule(
+                    rule_type=rule_type,
+                    regulation_code=reg_code,
+                    title=title,
+                    content=content,
+                    threshold_percentage=raw.get("threshold_percentage"),
+                    penalties_or_remedies=raw.get("penalties_or_remedies"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(rule)
+                db.commit()
+                count += 1
+        return count
+
+
+class MITSExamRuleAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Examination Cell rules (SEE/CIE weightage, Revaluation)."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            rule_type = str(raw.get("rule_type", "")).strip().upper()
+            title = str(raw.get("title", "")).strip()
+            content = str(raw.get("content", "")).strip()
+            if not rule_type or not title or not content:
+                continue
+
+            existing = db.query(ExamRule).filter(
+                (ExamRule.rule_type == rule_type) &
+                (ExamRule.title == title)
+            ).first()
+
+            if existing:
+                existing.content = content
+                existing.see_weightage = raw.get("see_weightage", existing.see_weightage)
+                existing.cie_weightage = raw.get("cie_weightage", existing.cie_weightage)
+                existing.min_pass_marks = raw.get("min_pass_marks", existing.min_pass_marks)
+                existing.revaluation_deadline_days = raw.get("revaluation_deadline_days", existing.revaluation_deadline_days)
+                existing.source_url = raw.get("source_url", existing.source_url)
+                db.commit()
+            else:
+                rule = ExamRule(
+                    rule_type=rule_type,
+                    regulation_code=raw.get("regulation_code", "R20"),
+                    title=title,
+                    content=content,
+                    see_weightage=raw.get("see_weightage"),
+                    cie_weightage=raw.get("cie_weightage"),
+                    min_pass_marks=raw.get("min_pass_marks"),
+                    revaluation_deadline_days=raw.get("revaluation_deadline_days"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(rule)
+                db.commit()
+                count += 1
+        return count
+
+
+class MITSHistoryAdapter(BaseMITSAdapter):
+    """Adapter for official MITS Milestones & Accreditations (1998, UGC Autonomy, NAAC A++)."""
+
+    def save(self, db: Session, items: List[Dict[str, Any]]) -> int:
+        count = 0
+        for raw in items:
+            year = int(raw.get("milestone_year", 0))
+            title = str(raw.get("title", "")).strip()
+            description = str(raw.get("description", "")).strip()
+            if not year or not title:
+                continue
+
+            existing = db.query(InstitutionHistory).filter(
+                (InstitutionHistory.milestone_year == year) &
+                (InstitutionHistory.title == title)
+            ).first()
+
+            if existing:
+                existing.description = description
+                existing.category = raw.get("category", existing.category)
+                existing.source_url = raw.get("source_url", existing.source_url)
+                db.commit()
+            else:
+                hist = InstitutionHistory(
+                    milestone_year=year,
+                    title=title,
+                    description=description,
+                    category=raw.get("category", "MILESTONE"),
+                    source_url=raw.get("source_url"),
+                )
+                db.add(hist)
+                db.commit()
+                count += 1
+        return count
+

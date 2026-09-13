@@ -96,6 +96,7 @@ def send_chat_message(
             query=query_text,
             department=payload.department,
             academic_year=payload.academic_year,
+            db=db,
         )
         answer = pipeline_result.get("answer", "")
         grounded = bool(pipeline_result.get("grounded", False))

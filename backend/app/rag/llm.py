@@ -73,18 +73,20 @@ def _synthesize_grounded_fallback(question: str, context_chunks: List[Dict[str, 
 
 def generate_grounded_answer(
     question: str,
-    context_chunks: List[Dict[str, Any]],
+    context_chunks: Optional[List[Dict[str, Any]]] = None,
     client: Optional[genai.Client] = None,
     timeout_ms: Optional[int] = None,
+    structured_context: Optional[str] = None,
 ) -> str:
     """
     Generates a grounded factual answer using Gemini via the official google-genai SDK.
 
     Args:
-        question: Student query string.
+        question: Student/user query string.
         context_chunks: Retrieved document chunks with metadata.
         client: Optional pre-initialized genai.Client (useful for testing).
         timeout_ms: Timeout in milliseconds for the generation API call.
+        structured_context: Optional formatted official structured database facts.
 
     Returns:
         Grounded answer string.
@@ -92,14 +94,15 @@ def generate_grounded_answer(
     if not question or not question.strip():
         return NO_CONTEXT_FALLBACK_TEXT
 
-    if not context_chunks:
+    chunks = context_chunks or []
+    if not chunks and not structured_context:
         return NO_CONTEXT_FALLBACK_TEXT
 
     if client is None:
         eff_timeout = timeout_ms if timeout_ms else 12000
         client = _get_client(eff_timeout)
 
-    prompt = format_rag_prompt(question, context_chunks)
+    prompt = format_rag_prompt(question, chunks, structured_context=structured_context)
 
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_GROUNDING_PROMPT,
@@ -137,6 +140,11 @@ def generate_grounded_answer(
     raise LLMGenerationError(f"Gemini API generation call failed: {last_exc}") from last_exc
 
 
-def generate_rag_answer(query: str, context_chunks: List[Dict[str, Any]]) -> str:
+def generate_rag_answer(
+    query: str,
+    context_chunks: Optional[List[Dict[str, Any]]] = None,
+    structured_context: Optional[str] = None,
+) -> str:
     """Alias function for backwards compatibility with earlier milestones."""
-    return generate_grounded_answer(question=query, context_chunks=context_chunks)
+    return generate_grounded_answer(question=query, context_chunks=context_chunks, structured_context=structured_context)
+
