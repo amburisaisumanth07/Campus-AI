@@ -48,9 +48,11 @@ def test_prompts_formatting():
     assert "Policy" in formatted
 
 
+@patch("backend.app.rag.pipeline.knowledge_service.resolve_structured_query", return_value=None)
 @patch("backend.app.rag.retrieval.retrieve_context")
 @patch("backend.app.rag.llm.generate_grounded_answer")
-def test_pipeline_run(mock_generate, mock_retrieve):
+def test_pipeline_run(mock_generate, mock_retrieve, mock_struct):
+    pipeline.clear_rag_cache()
     mock_retrieve.return_value = [
         {
             "doc_id": 1,
@@ -70,10 +72,12 @@ def test_pipeline_run(mock_generate, mock_retrieve):
     assert result["had_context"] is True
 
 
+@patch("backend.app.rag.pipeline.knowledge_service.resolve_structured_query", return_value=None)
 @patch("backend.app.rag.retrieval.retrieve_context")
-def test_pipeline_vectorstore_error_not_found(mock_retrieve):
+def test_pipeline_vectorstore_error_not_found(mock_retrieve, mock_struct):
     from backend.app.rag.retrieval import VectorStoreError
 
+    pipeline.clear_rag_cache()
     mock_retrieve.side_effect = VectorStoreError("Vector store search failed: Collection campus_docs does not exist.")
 
     result = pipeline.run_pipeline("What is the attendance policy?")
@@ -84,10 +88,12 @@ def test_pipeline_vectorstore_error_not_found(mock_retrieve):
     assert result["retrieval_error"] is True
 
 
+@patch("backend.app.rag.pipeline.knowledge_service.resolve_structured_query", return_value=None)
 @patch("backend.app.rag.retrieval.retrieve_context")
-def test_pipeline_vectorstore_error_generic(mock_retrieve):
+def test_pipeline_vectorstore_error_generic(mock_retrieve, mock_struct):
     from backend.app.rag.retrieval import VectorStoreError
 
+    pipeline.clear_rag_cache()
     mock_retrieve.side_effect = VectorStoreError("Vector store search failed: Connection error.")
 
     result = pipeline.run_pipeline("What is the attendance policy?")

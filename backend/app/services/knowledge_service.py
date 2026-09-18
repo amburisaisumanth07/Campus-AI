@@ -8,9 +8,15 @@ from datetime import datetime, timezone
 import re
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, and_, not_, func
 
 from backend.app.core.logging import logger
+from backend.app.core.canonical_departments import (
+    CANONICAL_DEPARTMENTS,
+    CANONICAL_DEPARTMENTS_BY_ID,
+    CanonicalDepartment,
+    resolve_canonical_department,
+)
 from backend.app.db.models import (
     Person,
     Leadership,
@@ -124,63 +130,72 @@ def resolve_department(
     code_or_name: str,
 ) -> Optional[Dict[str, Any]]:
     """Resolve department details including HOD, school, programs, and contact."""
-    code_upper = code_or_name.strip().upper()
-    dept = db.query(Department).filter(
-        or_(
-            Department.code == code_upper,
-            Department.name.ilike(f"%{code_or_name.strip()}%"),
-        )
-    ).first()
+    canon = resolve_canonical_department(code_or_name)
+    dept = None
+    if canon:
+        dept = db.query(Department).filter(
+            or_(
+                Department.id == canon.department_id,
+                Department.code == canon.code,
+            )
+        ).first()
+
     if not dept:
+        code_upper = code_or_name.strip().upper()
+        dept = db.query(Department).filter(
+            or_(
+                Department.code == code_upper,
+                Department.name.ilike(f"%{code_or_name.strip()}%"),
+            )
+        ).first()
+
+    if not dept and not canon:
         return None
 
+    official_name = canon.official_name if canon else dept.name
+    official_code = canon.code if canon else dept.code
+    school_name = canon.school if canon else (dept.school or "N/A")
+    official_url = canon.official_url if canon else (dept.source_url or f"{OFFICIAL_MITS_BASE_URL}/{dept.code.lower()}")
+    hod_name = canon.hod_name if canon else (dept.hod_name or dept.hod if dept else "N/A")
+    hod_desig = canon.hod_designation if canon else (dept.hod_designation if dept else "Head of Department")
+
     lines = [
-        f"=== OFFICIAL MITS DEPARTMENT RECORD: {dept.name} ({dept.code}) ===",
-        f"School: {dept.school or 'N/A'}",
+        f"=== OFFICIAL MITS DEPARTMENT RECORD: {official_name} ({official_code}) ===",
+        f"Department: {official_name}",
+        f"Department Code: {official_code}",
+        f"School: {school_name}",
+        f"Head of Department (HOD): {hod_name}",
+        f"HOD Designation: {hod_desig}",
     ]
-    if dept.description:
+    if dept and dept.description:
         lines.append(f"Overview: {dept.description}")
 
-    # HOD Details
-    hod_name = dept.hod_name or dept.hod
-    if dept.hod_person:
-        p = dept.hod_person
-        title_str = f"{p.title} " if p.title else ""
-        qual_str = f", {p.qualification}" if p.qualification else ""
-        lines.append(f"Head of Department (HOD): {title_str}{p.name}{qual_str}")
-        if dept.hod_designation or p.designation:
-            lines.append(f"HOD Designation: {dept.hod_designation or p.designation}")
-        if p.email or dept.email:
-            lines.append(f"HOD Email: {p.email or dept.email}")
-        if p.phone or dept.phone:
-            lines.append(f"Contact Phone: {p.phone or dept.phone}")
-    elif hod_name:
-        lines.append(f"Head of Department (HOD): {hod_name}")
-        if dept.hod_designation:
-            lines.append(f"HOD Designation: {dept.hod_designation}")
-        if dept.email:
-            lines.append(f"Department Email: {dept.email}")
-        if dept.phone:
-            lines.append(f"Department Phone: {dept.phone}")
+    if dept and dept.email:
+        lines.append(f"Department Email: {dept.email}")
+    if dept and dept.phone:
+        lines.append(f"Contact Phone: {dept.phone}")
 
     # Programs offered
-    programs = db.query(Program).filter(
-        Program.department_id == dept.id,
-        Program.is_active == True,  # noqa: E712
-    ).all()
-    if programs:
-        lines.append("Programs Offered:")
-        for prg in programs:
-            intake_str = f" (Intake: {prg.intake})" if prg.intake else ""
-            lines.append(f"  • [{prg.degree_level}] {prg.name} - {prg.duration_years} Years{intake_str}")
+    dept_id = canon.department_id if canon else (dept.id if dept else None)
+    if dept_id:
+        programs = db.query(Program).filter(
+            Program.department_id == dept_id,
+            Program.is_active == True,  # noqa: E712
+        ).all()
+        if programs:
+            lines.append("")
+            lines.append("Programs Offered:")
+            for prg in programs:
+                intake_str = f" (Intake: {prg.intake})" if prg.intake else ""
+                lines.append(f"  • [{prg.degree_level}] {prg.name} - {prg.duration_years} Years{intake_str}")
 
-    source_url = dept.source_url or dept.hod_source_url or f"{OFFICIAL_MITS_BASE_URL}/{dept.code.lower()}"
-    lines.append(f"Official Department URL: {source_url}")
+    lines.append("")
+    lines.append(f"Official Department URL: {official_url}")
 
     citations = [
         _make_citation(
-            title=f"MITS Department of {dept.name} ({dept.code})",
-            source_url=source_url,
+            title=f"MITS Department of {official_name} ({official_code})",
+            source_url=official_url,
             category="Department Information",
         )
     ]
@@ -189,7 +204,7 @@ def resolve_department(
         "text": "\n".join(lines).strip(),
         "citations": citations,
         "entity_type": "DEPARTMENT",
-        "entity_name": dept.name,
+        "entity_name": official_name,
         "found": True,
     }
 
@@ -200,27 +215,41 @@ def resolve_hod(
 ) -> Optional[Dict[str, Any]]:
     """Resolve Head of Department (HOD) for a given department or list all HODs."""
     if dept_code:
-        dept = db.query(Department).filter(
-            or_(
-                Department.code == dept_code.strip().upper(),
-                Department.name.ilike(f"%{dept_code.strip()}%"),
-            )
-        ).first()
+        canon = resolve_canonical_department(dept_code)
+        dept = None
+        if canon:
+            dept = db.query(Department).filter(
+                or_(
+                    Department.id == canon.department_id,
+                    Department.code == canon.code,
+                )
+            ).first()
+
         if not dept:
+            code_upper = dept_code.strip().upper()
+            dept = db.query(Department).filter(
+                or_(
+                    Department.code == code_upper,
+                    Department.name.ilike(f"%{dept_code.strip()}%"),
+                )
+            ).first()
+
+        if not dept and not canon:
             return None
 
-        hod_name = dept.hod_name or dept.hod or (dept.hod_person.name if dept.hod_person else None)
-        if not hod_name:
-            return None
+        official_name = canon.official_name if canon else (dept.name if dept else dept_code)
+        official_code = canon.code if canon else (dept.code if dept else dept_code)
+        hod_name = canon.hod_name if canon else (dept.hod_name or dept.hod if dept else "N/A")
+        hod_desig = canon.hod_designation if canon else (dept.hod_designation if dept else "Head of Department")
+        official_url = canon.source_url if canon else f"{OFFICIAL_MITS_BASE_URL}/departmentheads"
 
         lines = [
-            f"=== OFFICIAL MITS HOD RECORD: {dept.name} ({dept.code}) ===",
-            f"Department: {dept.name} ({dept.code})",
+            f"=== OFFICIAL MITS HOD RECORD: {official_name} ({official_code}) ===",
+            f"Department: {official_name} ({official_code})",
             f"Head of Department (HOD): {hod_name}",
+            f"Designation: {hod_desig}",
         ]
-        if dept.hod_designation:
-            lines.append(f"Designation: {dept.hod_designation}")
-        if dept.hod_person:
+        if dept and dept.hod_person:
             p = dept.hod_person
             if p.qualification:
                 lines.append(f"Qualification: {p.qualification}")
@@ -230,16 +259,15 @@ def resolve_hod(
                 lines.append(f"Phone: {p.phone}")
             if p.profile_url:
                 lines.append(f"Profile: {p.profile_url}")
-        elif dept.email:
+        elif dept and dept.email:
             lines.append(f"Email: {dept.email}")
 
-        source_url = dept.hod_source_url or dept.source_url or f"{OFFICIAL_MITS_BASE_URL}/departmentheads"
-        lines.append(f"Official Source: {source_url}")
+        lines.append(f"Official Source: {official_url}")
 
         citations = [
             _make_citation(
-                title=f"Head of Department - {dept.name} ({dept.code})",
-                source_url=source_url,
+                title=f"Head of Department - {official_name} ({official_code})",
+                source_url=official_url,
                 category="Department Heads",
             )
         ]
@@ -251,11 +279,7 @@ def resolve_hod(
             "found": True,
         }
 
-    # All HODs
-    departments = db.query(Department).filter(Department.is_active == True).order_by(Department.code).all()  # noqa: E712
-    if not departments:
-        return None
-
+    # All HODs - list canonical 14 department heads from official MITS records
     lines = [
         "=== OFFICIAL MITS HEADS OF DEPARTMENTS (HODs) ===",
         f"Source: {OFFICIAL_MITS_BASE_URL}/departmentheads",
@@ -268,11 +292,13 @@ def resolve_hod(
             category="Department Heads",
         )
     ]
-    for d in departments:
-        h_name = d.hod_name or d.hod or (d.hod_person.name if d.hod_person else "N/A")
-        lines.append(f"• {d.code} ({d.name}): {h_name}")
-        if d.email:
-            lines.append(f"  Email: {d.email}")
+    for code, c_dept in CANONICAL_DEPARTMENTS.items():
+        if code == "BSH":
+            lines.append(f"• Basic Sciences & Humanities (BSH):")
+            for div, h_info in c_dept.division_heads.items():
+                lines.append(f"    - {div}: {h_info}")
+        else:
+            lines.append(f"• {c_dept.code} ({c_dept.official_name}): {c_dept.hod_name} ({c_dept.hod_designation})")
 
     return {
         "text": "\n".join(lines).strip(),
@@ -286,71 +312,136 @@ def resolve_faculty(
     db: Session,
     dept_code: Optional[str] = None,
     person_name: Optional[str] = None,
-    limit: int = 50,
+    designation_filter: Optional[str] = None,
+    is_count_query: bool = False,
+    limit: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Resolve faculty members by department or specific name."""
-    query = db.query(Faculty).filter(Faculty.is_active == True)  # noqa: E712
+    """
+    Resolve faculty members by department or specific name using exact SQL queries only.
+    Never uses semantic similarity search. Returns 100% complete faculty rosters.
+    Follows the Department-Scoped Answer Contract.
+    """
+    query = db.query(Faculty).filter(Faculty.is_active == True, Faculty.is_valid == True)  # noqa: E712
+
+    canon_dept: Optional[CanonicalDepartment] = None
+    dept_obj: Optional[Department] = None
 
     if dept_code:
-        code_upper = dept_code.strip().upper()
-        # Find department ID
-        dept = db.query(Department).filter(Department.code == code_upper).first()
-        if dept:
-            query = query.filter(
+        canon_dept = resolve_canonical_department(dept_code)
+        if not canon_dept and dept_code.upper() in CANONICAL_DEPARTMENTS:
+            canon_dept = CANONICAL_DEPARTMENTS[dept_code.upper()]
+
+        if canon_dept:
+            dept_obj = db.query(Department).filter(
                 or_(
-                    Faculty.department_id == dept.id,
-                    Faculty.department.ilike(f"%{code_upper}%"),
+                    Department.id == canon_dept.department_id,
+                    Department.code == canon_dept.code,
                 )
-            )
+            ).first()
+            # STRICT SQL: filter only on the exact canonical department_id
+            query = query.filter(Faculty.department_id == canon_dept.department_id)
         else:
-            query = query.filter(Faculty.department.ilike(f"%{code_upper}%"))
+            # Fallback by code or exact department name
+            dept_obj = db.query(Department).filter(
+                or_(
+                    Department.code == dept_code.strip().upper(),
+                    Department.name == dept_code.strip(),
+                )
+            ).first()
+            if dept_obj:
+                query = query.filter(Faculty.department_id == dept_obj.id)
+            else:
+                return {
+                    "text": f"The official MITS data currently contains no department matching '{dept_code}'.",
+                    "citations": [],
+                    "entity_type": "FACULTY",
+                    "found": False,
+                }
 
     if person_name:
         clean_name = re.sub(r"^(Dr\.?|Prof\.?|Mr\.?|Mrs\.?|Ms\.?)\s+", "", person_name.strip(), flags=re.IGNORECASE)
         query = query.filter(Faculty.name.ilike(f"%{clean_name}%"))
 
-    faculty_list = query.order_by(Faculty.name).limit(limit).all()
+    # Handle designation filters (professors, assistant professors, associate professors)
+    if designation_filter == "PROFESSOR":
+        query = query.filter(
+            and_(
+                Faculty.designation.ilike("%professor%"),
+                not_(Faculty.designation.ilike("%assistant%")),
+                not_(Faculty.designation.ilike("%asst%")),
+                not_(Faculty.designation.ilike("%associate%")),
+                not_(Faculty.designation.ilike("%assoc%")),
+            )
+        )
+    elif designation_filter == "ASSISTANT_PROFESSOR":
+        query = query.filter(
+            or_(
+                Faculty.designation.ilike("%assistant professor%"),
+                Faculty.designation.ilike("%asst%professor%"),
+                Faculty.designation.ilike("%sr. assistant professor%"),
+                Faculty.designation.ilike("%senior assistant professor%"),
+            )
+        )
+    elif designation_filter == "ASSOCIATE_PROFESSOR":
+        query = query.filter(
+            or_(
+                Faculty.designation.ilike("%associate professor%"),
+                Faculty.designation.ilike("%assoc%professor%"),
+            )
+        )
+
+    # Order faculty logically by designation prestige, then name
+    faculty_list = query.order_by(Faculty.designation, Faculty.name).all()
+
+    # Department-Scoped Answer Contract
+    dept_name = canon_dept.official_name if canon_dept else (dept_obj.name if dept_obj else "MITS Academic Department")
+    dept_code_str = canon_dept.code if canon_dept else (dept_obj.code if dept_obj else "")
+    hod_name = canon_dept.hod_name if canon_dept else (dept_obj.hod_name or dept_obj.hod if dept_obj else "N/A")
+    source_url = canon_dept.official_url if canon_dept else (dept_obj.source_url if dept_obj else f"{OFFICIAL_MITS_BASE_URL}/faculty-information")
+
     if not faculty_list:
-        return None
-
-    dept_title = f" in Department of {dept_code.upper()}" if dept_code else ""
-    lines = [
-        f"=== OFFICIAL MITS FACULTY DIRECTORY{dept_title} ===",
-        f"Total Records Found: {len(faculty_list)}",
-        "",
-    ]
-    citations = []
-    for f in faculty_list:
-        lines.append(f"• Name: {f.name}")
-        if f.designation:
-            lines.append(f"  Designation: {f.designation}")
-        if f.qualification:
-            lines.append(f"  Qualification: {f.qualification}")
-        if f.department:
-            lines.append(f"  Department: {f.department}")
-        if f.email:
-            lines.append(f"  Email: {f.email}")
-        if f.specialization:
-            lines.append(f"  Specialization: {f.specialization}")
-        if f.experience_years:
-            lines.append(f"  Experience: {f.experience_years} Years")
-        if f.profile_url:
-            lines.append(f"  Profile: {f.profile_url}")
-        lines.append("")
-
-        if len(citations) < 5:
-            citations.append(
+        return {
+            "text": f"The official MITS data currently contains no faculty records for this department ({dept_name}).",
+            "citations": [
                 _make_citation(
-                    title=f"MITS Faculty Profile - {f.name} ({f.department or 'Faculty'})",
-                    source_url=f.profile_url or f.source_url or f"{OFFICIAL_MITS_BASE_URL}/faculty-information",
+                    title=f"MITS Official Faculty Directory - {dept_name}",
+                    source_url=source_url,
                     category="Faculty",
                 )
-            )
+            ],
+            "entity_type": "FACULTY",
+            "found": True,
+        }
+
+    lines = [
+        f"Department:\n{dept_name} ({dept_code_str})" if dept_code_str else f"Department:\n{dept_name}",
+        f"\nHOD:\n{hod_name}",
+        f"\nTotal Faculty:\n{len(faculty_list)}",
+        "\nFaculty:",
+    ]
+
+    for idx, f in enumerate(faculty_list, 1):
+        qual_str = f" ({f.qualification})" if f.qualification else ""
+        spec_str = f" | Specialization: {f.specialization}" if f.specialization else ""
+        email_str = f" | Email: {f.email}" if f.email else ""
+        profile_str = f" | Profile: {f.profile_url}" if f.profile_url else ""
+        lines.append(f"{idx}. {f.name} - {f.designation or 'Faculty Member'}{qual_str}{spec_str}{email_str}{profile_str}")
+
+    lines.append(f"\nSources:\n{source_url}")
+
+    citations = [
+        _make_citation(
+            title=f"MITS Faculty Directory - {dept_name}",
+            source_url=source_url,
+            category="Faculty",
+        )
+    ]
 
     return {
         "text": "\n".join(lines).strip(),
         "citations": citations,
         "entity_type": "FACULTY",
+        "total_faculty": len(faculty_list),
         "found": True,
     }
 
@@ -1026,6 +1117,21 @@ def resolve_structured_query(
 
     logger.info(f"[KNOWLEDGE_SERVICE] Dispatching intent '{intent.value}' with entities: {entities}")
 
+    if routed_query.is_ambiguous and routed_query.clarification_question:
+        return {
+            "text": routed_query.clarification_question,
+            "citations": [
+                _make_citation(
+                    title="MITS Academic Departments Directory",
+                    source_url=f"{OFFICIAL_MITS_BASE_URL}/departments",
+                    category="Department Directory",
+                )
+            ],
+            "entity_type": "CLARIFICATION",
+            "is_ambiguous": True,
+            "found": True,
+        }
+
     try:
         if intent == QueryIntent.ROLE_LOOKUP:
             role_code = entities.get("role_code")
@@ -1041,7 +1147,15 @@ def resolve_structured_query(
         elif intent == QueryIntent.FACULTY_LOOKUP:
             dept_code = entities.get("department_code")
             person_name = entities.get("person_name")
-            return resolve_faculty(db, dept_code=dept_code, person_name=person_name)
+            designation_filter = entities.get("designation_filter")
+            is_count_query = entities.get("is_count_query", False)
+            return resolve_faculty(
+                db,
+                dept_code=dept_code,
+                person_name=person_name,
+                designation_filter=designation_filter,
+                is_count_query=is_count_query,
+            )
 
         elif intent == QueryIntent.PERSON_LOOKUP:
             person_name = entities.get("person_name") or query_text

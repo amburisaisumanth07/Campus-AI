@@ -10,6 +10,13 @@ import re
 from typing import Dict, Any, Optional, List
 
 
+from backend.app.core.canonical_departments import (
+    resolve_canonical_department,
+    detect_department_ambiguity,
+    CANONICAL_DEPARTMENTS,
+)
+
+
 class QueryIntent(str, enum.Enum):
     PERSON_LOOKUP = "PERSON_LOOKUP"
     ROLE_LOOKUP = "ROLE_LOOKUP"
@@ -39,6 +46,8 @@ class RoutedQuery:
     requires_structured: bool = True
     requires_rag: bool = False
     metadata_filters: Optional[Dict[str, Any]] = None
+    is_ambiguous: bool = False
+    clarification_question: Optional[str] = None
 
 
 # Known department code synonyms and mapping
@@ -130,6 +139,10 @@ COMMITTEE_PATTERNS = [
 
 def extract_department(text: str) -> Optional[str]:
     """Extract canonical department code from query text."""
+    canon = resolve_canonical_department(text)
+    if canon:
+        return canon.code
+
     lower = text.lower()
     # Check multi-word synonyms first for maximal substring matching
     sorted_synonyms = sorted(DEPT_SYNONYMS.keys(), key=lambda x: -len(x))
@@ -159,6 +172,12 @@ def classify_query(query: str) -> RoutedQuery:
     dept = extract_department(cleaned)
     if dept:
         entities["department_code"] = dept
+
+    amb = detect_department_ambiguity(cleaned)
+    if amb:
+        entities["is_ambiguous"] = True
+        entities["clarification_question"] = amb["clarification_question"]
+        entities["candidate_codes"] = [d.code for d in amb["candidate_departments"]]
 
     person = extract_person_name(cleaned)
     if person:
@@ -208,6 +227,17 @@ def classify_query(query: str) -> RoutedQuery:
     # 4. Check HOD (Head of Department) Lookup
     # If a specific person name is present and asking for their details/experience/profile, route to PERSON_LOOKUP instead
     if has_hod_keyword and not (person and re.search(r"\b(experience|profile|qualification|bio|about|details)\b", lower)):
+        if amb:
+            return RoutedQuery(
+                original_query=query,
+                cleaned_query=cleaned,
+                intent=QueryIntent.ROLE_LOOKUP,
+                extracted_entities=dict(role_code="HOD", **entities),
+                requires_structured=True,
+                requires_rag=False,
+                is_ambiguous=True,
+                clarification_question=amb["clarification_question"],
+            )
         return RoutedQuery(
             original_query=query,
             cleaned_query=cleaned,
@@ -217,8 +247,32 @@ def classify_query(query: str) -> RoutedQuery:
             requires_rag=False,
         )
 
-    # 5. Check FACULTY_LOOKUP (e.g. list faculty, faculty members, professors, who teaches)
-    if re.search(r"\b(faculty|professors?|lecturers?|teachers?|teaches|faculty list|list (of )?faculty|all faculty)\b", lower):
+    # 5. Check FACULTY_LOOKUP (e.g. list faculty, faculty members, professors, who teaches, faculty count)
+    is_faculty_query = bool(re.search(r"\b(faculty|professors?|lecturers?|teachers?|teaches|faculty list|list (of )?faculty|all faculty|how many faculty|faculty count)\b", lower))
+    if is_faculty_query:
+        # Check designation specifics: professors, assistant professors, associate professors
+        if re.search(r"\b(assistant professors?|asst\.? professors?)\b", lower):
+            entities["designation_filter"] = "ASSISTANT_PROFESSOR"
+        elif re.search(r"\b(associate professors?|assoc\.? professors?)\b", lower):
+            entities["designation_filter"] = "ASSOCIATE_PROFESSOR"
+        elif re.search(r"\b(professors?)\b", lower):
+            entities["designation_filter"] = "PROFESSOR"
+
+        if re.search(r"\b(how many|count (of )?faculty|number of faculty|total faculty)\b", lower):
+            entities["is_count_query"] = True
+
+        if amb:
+            return RoutedQuery(
+                original_query=query,
+                cleaned_query=cleaned,
+                intent=QueryIntent.FACULTY_LOOKUP,
+                extracted_entities=entities,
+                requires_structured=True,
+                requires_rag=False,
+                is_ambiguous=True,
+                clarification_question=amb["clarification_question"],
+            )
+
         return RoutedQuery(
             original_query=query,
             cleaned_query=cleaned,
@@ -263,7 +317,7 @@ def classify_query(query: str) -> RoutedQuery:
         )
 
     # 8. Check ADMISSION (EAPCET, ICET, PGECET, quotas, eligibility for admission)
-    if re.search(r"\b(admission|admissions|how to apply|entrance exam|eapcet|icet|pgecet|management quota|convenor quota|category[- ]?[ab]|lateral entry|seats? allotted)\b", lower):
+    if re.search(r"\b(admission|admissions|how to apply (for|to) (admission|mits|b\.?tech|m\.?tech|mba|mca|engineering)|how to get admission|entrance exam|eapcet|icet|pgecet|management quota|convenor quota|category[- ]?[ab]|lateral entry|seats? allotted)\b", lower):
         return RoutedQuery(
             original_query=query,
             cleaned_query=cleaned,
@@ -274,7 +328,7 @@ def classify_query(query: str) -> RoutedQuery:
         )
 
     # 9. Check PROGRAM_LOOKUP (programs, degrees, courses offered, B.Tech, M.Tech, MBA, MCA, PhD, offer ...)
-    if re.search(r"\b(programs?|degrees?|courses? offered|programs? offered|specializations?|undergraduate|postgraduate|ph\.?d|b\.?tech|m\.?tech|intake|offer (mba|mca|b\.?tech|m\.?tech|degree|course|program))\b", lower) and not re.search(r"\b(exam\w*|admiss\w*|attend\w*)\b", lower):
+    if re.search(r"\b(programs?|degrees?|courses? offered|programs? offered|specializations?|undergraduate|postgraduate|ph\.?d|b\.?tech|m\.?tech|intake|offer (mba|mca|b\.?tech|m\.?tech|degree|course|program)|what programs belong to|programs in|programs offered by)\b", lower) and not re.search(r"\b(exam\w*|admiss\w*|attend\w*)\b", lower):
         return RoutedQuery(
             original_query=query,
             cleaned_query=cleaned,
@@ -285,7 +339,7 @@ def classify_query(query: str) -> RoutedQuery:
         )
 
     # 10. Check DEPARTMENT_LOOKUP
-    if re.search(r"\b(department|dept|school of)\b", lower) and dept:
+    if (re.search(r"\b(department|dept|school of)\b", lower) and dept) or (dept and re.search(r"\b(tell me about|about|overview|details of|information on)\b", lower)):
         return RoutedQuery(
             original_query=query,
             cleaned_query=cleaned,

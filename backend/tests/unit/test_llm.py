@@ -198,7 +198,9 @@ def test_no_citation_fabrication_rule():
 
 def test_deterministic_pipeline_no_context():
     """Test pipeline short-circuiting when retrieval returns zero chunks."""
-    with patch("backend.app.rag.retrieval.retrieve_context", return_value=[]), \
+    pipeline.clear_rag_cache()
+    with patch("backend.app.rag.pipeline.knowledge_service.resolve_structured_query", return_value=None), \
+         patch("backend.app.rag.retrieval.retrieve_context", return_value=[]), \
          patch("backend.app.rag.llm.generate_grounded_answer") as mock_generate:
 
         result = pipeline.run_pipeline("What is the hostel curfew?")
@@ -213,6 +215,7 @@ def test_deterministic_pipeline_no_context():
 
 def test_deterministic_pipeline_with_context():
     """Test pipeline execution when retrieval returns valid chunks."""
+    pipeline.clear_rag_cache()
     retrieved = [
         {
             "doc_id": 5,
@@ -227,7 +230,8 @@ def test_deterministic_pipeline_with_context():
         }
     ]
 
-    with patch("backend.app.rag.retrieval.retrieve_context", return_value=retrieved), \
+    with patch("backend.app.rag.pipeline.knowledge_service.resolve_structured_query", return_value=None), \
+         patch("backend.app.rag.retrieval.retrieve_context", return_value=retrieved), \
          patch("backend.app.rag.llm.generate_grounded_answer", return_value="The hostel curfew is 10 PM.") as mock_generate:
 
         result = pipeline.run_pipeline("What is the hostel curfew?")

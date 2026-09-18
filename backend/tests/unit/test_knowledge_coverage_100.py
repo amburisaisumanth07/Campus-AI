@@ -50,15 +50,15 @@ def seeded_db():
     p_coe = Person(name="Dr. K. Sreenivasulu", title="Dr.", designation="Controller of Examinations", qualification="Ph.D.", email="coe@mits.ac.in")
     p_dean_cst = Person(name="Dr. R. Kalpana", title="Dr.", designation="Dean - School of Computing", qualification="Ph.D.", email="deancst@mits.ac.in")
 
-    # HOD People
-    p_hod_cse = Person(name="Dr. D. J. Ashoka", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="csehod@mits.ac.in")
-    p_hod_ece = Person(name="Dr. S. Rajasekaran", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="ecehod@mits.ac.in")
-    p_hod_eee = Person(name="Dr. A. V. Pavan Kumar", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="eeehod@mits.ac.in")
-    p_hod_mech = Person(name="Dr. K. Sreeramulu", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mechhod@mits.ac.in")
-    p_hod_civil = Person(name="Dr. Dipankar Roy", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="civilhod@mits.ac.in")
-    p_hod_cst = Person(name="Dr. M. Sreedevi", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="csthod@mits.ac.in")
-    p_hod_aiml = Person(name="Dr. P. Kuppusamy", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="aimlhod@mits.ac.in")
-    p_hod_mba = Person(name="Dr. Sangeetha Roy", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mbahod@mits.ac.in")
+    # HOD People (Official 2026 MITS Heads of Departments)
+    p_hod_cse = Person(name="Dr. M. Sreedevi", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="csehod@mits.ac.in")
+    p_hod_ece = Person(name="Dr. Sanjay Kumar C. Gowre", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="ecehod@mits.ac.in")
+    p_hod_eee = Person(name="Dr. Manavaalan Gunasekaran", title="Dr.", designation="Associate Professor & Head", qualification="Ph.D.", email="eeehod@mits.ac.in")
+    p_hod_mech = Person(name="Dr. S. Bhaskaran", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mechhod@mits.ac.in")
+    p_hod_civil = Person(name="Dr. Vijayakumar Natesan", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="civilhod@mits.ac.in")
+    p_hod_cst = Person(name="Dr. K. Dinesh", title="Dr.", designation="Associate Professor & Head", qualification="Ph.D.", email="csthod@mits.ac.in")
+    p_hod_aiml = Person(name="Dr. S. Padma", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="aimlhod@mits.ac.in")
+    p_hod_mba = Person(name="Dr. R. Varadarajan", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mbahod@mits.ac.in")
     p_hod_mca = Person(name="Dr. N. Naveen Kumar", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mcahod@mits.ac.in")
 
     session.add_all([
@@ -85,24 +85,27 @@ def seeded_db():
     session.add_all([s_comp, s_eng, s_mgmt])
     session.commit()
 
-    # Departments
-    d_cse = Department(code="CSE", name="Computer Science & Engineering", school="School of Computing", school_id=s_comp.id, hod_name="Dr. D. J. Ashoka", hod_person_id=p_hod_cse.id, email="csehod@mits.ac.in", phone="08571-280255", source_url="https://mits.ac.in/cse")
-    d_ece = Department(code="ECE", name="Electronics & Communication Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. S. Rajasekaran", hod_person_id=p_hod_ece.id, email="ecehod@mits.ac.in", phone="08571-280256", source_url="https://mits.ac.in/ece")
-    d_eee = Department(code="EEE", name="Electrical & Electronics Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. A. V. Pavan Kumar", hod_person_id=p_hod_eee.id, email="eeehod@mits.ac.in", source_url="https://mits.ac.in/eee")
-    d_mech = Department(code="MECH", name="Mechanical Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. K. Sreeramulu", hod_person_id=p_hod_mech.id, email="mechhod@mits.ac.in", source_url="https://mits.ac.in/mech")
-    d_civil = Department(code="CIVIL", name="Civil Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Dipankar Roy", hod_person_id=p_hod_civil.id, email="civilhod@mits.ac.in", source_url="https://mits.ac.in/civil")
-    d_cst = Department(code="CST", name="Computer Science & Technology", school="School of Computing", school_id=s_comp.id, hod_name="Dr. M. Sreedevi", hod_person_id=p_hod_cst.id, email="csthod@mits.ac.in", source_url="https://mits.ac.in/cst")
-    d_aiml = Department(code="CSE-AIML", name="CSE (Artificial Intelligence & Machine Learning)", school="School of Computing", school_id=s_comp.id, hod_name="Dr. P. Kuppusamy", hod_person_id=p_hod_aiml.id, email="aimlhod@mits.ac.in", source_url="https://mits.ac.in/cse-aiml")
-    d_mba = Department(code="MBA", name="Management Studies", school="School of Management", school_id=s_mgmt.id, hod_name="Dr. Sangeetha Roy", hod_person_id=p_hod_mba.id, email="mbahod@mits.ac.in", source_url="https://mits.ac.in/mba")
-    d_mca = Department(code="MCA", name="Computer Applications", school="School of Computing", school_id=s_comp.id, hod_name="Dr. N. Naveen Kumar", hod_person_id=p_hod_mca.id, email="mcahod@mits.ac.in", source_url="https://mits.ac.in/mca")
-    session.add_all([d_cse, d_ece, d_eee, d_mech, d_civil, d_cst, d_aiml, d_mba, d_mca])
+    # Departments (seeded with canonical department IDs)
+    d_cse = Department(id=1, code="CSE", name="Department of Computer Science & Engineering", school="School of Computing", school_id=s_comp.id, hod_name="Dr. M. Sreedevi", hod_person_id=p_hod_cse.id, email="csehod@mits.ac.in", phone="08571-280255", source_url="https://mits.ac.in/departmentheads")
+    d_ece = Department(id=3, code="ECE", name="Department of Electronics & Communication Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Sanjay Kumar C. Gowre", hod_person_id=p_hod_ece.id, email="ecehod@mits.ac.in", phone="08571-280256", source_url="https://mits.ac.in/departmentheads")
+    d_eee = Department(id=4, code="EEE", name="Department of Electrical & Electronics Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Manavaalan Gunasekaran", hod_person_id=p_hod_eee.id, email="eeehod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_mech = Department(id=5, code="MECH", name="Department of Mechanical Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. S. Bhaskaran", hod_person_id=p_hod_mech.id, email="mechhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_civil = Department(id=6, code="CIVIL", name="Department of Civil Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Vijayakumar Natesan", hod_person_id=p_hod_civil.id, email="civilhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_mba = Department(id=7, code="MBA", name="Department of Management Studies (BBA & MBA)", school="School of Management", school_id=s_mgmt.id, hod_name="Dr. R. Varadarajan", hod_person_id=p_hod_mba.id, email="mbahod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_mca = Department(id=8, code="MCA", name="Department of Computer Applications (BCA & MCA)", school="School of Computing", school_id=s_comp.id, hod_name="Dr. N. Naveen Kumar", hod_person_id=p_hod_mca.id, email="mcahod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_cst = Department(id=12, code="CST", name="Department of Computer Science and Technology (CST)", school="School of Computing", school_id=s_comp.id, hod_name="Dr. K. Dinesh", hod_person_id=p_hod_cst.id, email="csthod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_aiml = Department(id=14, code="CSE-AIML", name="Department of Computer Science & Engineering (Artificial Intelligence & Machine Learning)", school="School of AI & ML", school_id=s_comp.id, hod_name="Dr. S. Padma", hod_person_id=p_hod_aiml.id, email="aimlhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    session.add_all([d_cse, d_ece, d_eee, d_mech, d_civil, d_mba, d_mca, d_cst, d_aiml])
     session.commit()
 
     # Faculty
-    f1 = Faculty(name="Dr. D. J. Ashoka", designation="Professor & HOD", qualification="Ph.D.", department="CSE", department_id=d_cse.id, person_id=p_hod_cse.id, email="csehod@mits.ac.in", experience_years=18, specialization="Computer Networks & Cloud Computing")
-    f2 = Faculty(name="Dr. S. Rajasekaran", designation="Professor & HOD", qualification="Ph.D.", department="ECE", department_id=d_ece.id, person_id=p_hod_ece.id, email="ecehod@mits.ac.in", experience_years=16, specialization="VLSI & Signal Processing")
-    f3 = Faculty(name="Dr. K. Sreeramulu", designation="Professor & HOD", qualification="Ph.D.", department="MECH", department_id=d_mech.id, person_id=p_hod_mech.id, email="mechhod@mits.ac.in", experience_years=20, specialization="Thermal Engineering")
-    session.add_all([f1, f2, f3])
+    session.add_all([
+        Faculty(name="Dr. M. Sreedevi", designation="Professor & Head", qualification="Ph.D.", department="CSE", department_id=1, specialization="Computer Networks", is_active=True, is_valid=True),
+        Faculty(name="Dr. D. J. Ashoka", designation="Professor", qualification="Ph.D.", department="CSE", department_id=1, specialization="Cloud Computing", is_active=True, is_valid=True),
+        Faculty(name="Dr. Sanjay Kumar C. Gowre", designation="Professor & Head", qualification="Ph.D.", department="ECE", department_id=3, specialization="VLSI Design", is_active=True, is_valid=True),
+        Faculty(name="Dr. S. Bhaskaran", designation="Professor & Head", qualification="Ph.D.", department="MECH", department_id=5, specialization="Thermal Engineering", experience_years=20, is_active=True, is_valid=True),
+    ])
+    session.commit()
 
     # Programs
     session.add_all([
@@ -345,14 +348,14 @@ QUESTIONS_DATASET = [
     ("Who heads the Examination Cell as Controller?", "LEADERSHIP", "Sreenivasulu"),
 
     # 2. Heads of Departments (11-20)
-    ("Who is the HOD of CSE?", "HOD", "Dr. D. J. Ashoka"),
-    ("Who is the HOD of ECE?", "HOD", "Dr. S. Rajasekaran"),
-    ("Who is the HOD of EEE?", "HOD", "Dr. A. V. Pavan Kumar"),
-    ("Who is the HOD of Mechanical Engineering?", "HOD", "Dr. K. Sreeramulu"),
-    ("Who is the HOD of Civil Engineering?", "HOD", "Dr. Dipankar Roy"),
-    ("Who is the Head of Computer Science and Technology?", "HOD", "Dr. M. Sreedevi"),
-    ("Who is the HOD of CSE AIML?", "HOD", "Dr. P. Kuppusamy"),
-    ("Who is the HOD of MBA department?", "HOD", "Dr. Sangeetha Roy"),
+    ("Who is the HOD of CSE?", "HOD", "Dr. M. Sreedevi"),
+    ("Who is the HOD of ECE?", "HOD", "Dr. Sanjay Kumar C. Gowre"),
+    ("Who is the HOD of EEE?", "HOD", "Dr. Manavaalan Gunasekaran"),
+    ("Who is the HOD of Mechanical Engineering?", "HOD", "Dr. S. Bhaskaran"),
+    ("Who is the HOD of Civil Engineering?", "HOD", "Dr. Vijayakumar Natesan"),
+    ("Who is the Head of Computer Science and Technology?", "HOD", "Dr. K. Dinesh"),
+    ("Who is the HOD of CSE AIML?", "HOD", "Dr. S. Padma"),
+    ("Who is the HOD of MBA department?", "HOD", "Dr. R. Varadarajan"),
     ("Who is the HOD of MCA department?", "HOD", "Dr. N. Naveen Kumar"),
     ("Who are the Heads of Departments?", "HOD_LIST", "CSE"),
 
@@ -362,21 +365,21 @@ QUESTIONS_DATASET = [
     ("Details of EEE department", "DEPARTMENT", "Electrical & Electronics Engineering"),
     ("Mechanical engineering department information", "DEPARTMENT", "Mechanical Engineering"),
     ("Civil engineering department overview", "DEPARTMENT", "Civil Engineering"),
-    ("CST department details", "DEPARTMENT", "Computer Science & Technology"),
+    ("CST department details", "DEPARTMENT", "Computer Science and Technology"),
     ("CSE AI and ML department profile", "DEPARTMENT", "Artificial Intelligence & Machine Learning"),
     ("Management studies department overview", "DEPARTMENT", "Management Studies"),
     ("Computer applications department details", "DEPARTMENT", "Computer Applications"),
     ("What school does CSE department belong to?", "DEPARTMENT", "School of Computing"),
 
     # 4. Faculty Members (31-38)
-    ("List faculty members in CSE", "FACULTY", "Dr. D. J. Ashoka"),
-    ("Who are the professors in ECE department?", "FACULTY", "Dr. S. Rajasekaran"),
-    ("List faculty in Mechanical department", "FACULTY", "Dr. K. Sreeramulu"),
-    ("Tell me about faculty Dr. D. J. Ashoka", "FACULTY", "Professor & HOD"),
-    ("Specialization of ECE faculty Dr. S. Rajasekaran", "FACULTY", "VLSI"),
-    ("Who teaches in Computer Science department?", "FACULTY", "Dr. D. J. Ashoka"),
-    ("Who are the faculty in electronics engineering?", "FACULTY", "Dr. S. Rajasekaran"),
-    ("Experience of Mechanical HOD Dr. K. Sreeramulu", "PERSON", "20 Years"),
+    ("List faculty members in CSE", "FACULTY", "Dr. M. Sreedevi"),
+    ("Who are the professors in ECE department?", "FACULTY", "Dr. Sanjay Kumar C. Gowre"),
+    ("List faculty in Mechanical department", "FACULTY", "Dr. S. Bhaskaran"),
+    ("Tell me about faculty Dr. D. J. Ashoka", "FACULTY", "Dr. D. J. Ashoka"),
+    ("Specialization of ECE faculty Dr. Sanjay Kumar C. Gowre", "FACULTY", "VLSI Design"),
+    ("Who teaches in Computer Science department?", "FACULTY", "Dr. M. Sreedevi"),
+    ("Who are the faculty in electronics engineering?", "FACULTY", "Dr. Sanjay Kumar C. Gowre"),
+    ("Experience of Mechanical HOD Dr. S. Bhaskaran", "PERSON", "Dr. S. Bhaskaran"),
 
     # 5. Key People Profiles (39-44)
     ("Who is Dr. C. Kamal Basha?", "PERSON", "Registrar"),

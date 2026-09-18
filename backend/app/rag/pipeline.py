@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.logging import logger
 from backend.app.rag import retrieval, llm, citations, router
+from backend.app.rag.router import QueryIntent
 from backend.app.rag.prompts import NO_CONTEXT_FALLBACK_TEXT
 from backend.app.rag.retrieval import RetrievalError, EmbeddingError, VectorStoreError
 from backend.app.rag.llm import LLMGenerationError, LLMQuotaError, LLMTimeoutError
@@ -132,14 +133,17 @@ def run_pipeline(
     if structured_result and structured_result.get("found") and not routed.requires_rag:
         t0_llm = time.perf_counter()
         try:
-            answer = llm.generate_grounded_answer(
-                question=query,
-                context_chunks=[],
-                timeout_ms=LLM_TIMEOUT,
-                structured_context=structured_text,
-            )
-            if answer.strip() == NO_CONTEXT_FALLBACK_TEXT:
+            if structured_result.get("is_ambiguous") or routed.intent == QueryIntent.FACULTY_LOOKUP:
                 answer = structured_text
+            else:
+                answer = llm.generate_grounded_answer(
+                    question=query,
+                    context_chunks=[],
+                    timeout_ms=LLM_TIMEOUT,
+                    structured_context=structured_text,
+                )
+                if answer.strip() == NO_CONTEXT_FALLBACK_TEXT:
+                    answer = structured_text
             grounded = True
             status_val = "SUCCESS"
         except Exception as exc:
