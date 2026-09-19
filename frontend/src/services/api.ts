@@ -40,6 +40,14 @@ function isNetworkError(error: any): boolean {
   return false;
 }
 
+export function handleAuthStatus(response: Response): void {
+  if (response.status === 401 || response.status === 403) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('campusai:unauthorized'));
+    }
+  }
+}
+
 export const checkHealth = async (): Promise<HealthResponse> => {
   try {
     const response = await fetch(`${API_BASE_URL}/health/`);
@@ -109,6 +117,7 @@ export const getMeApi = async (token: string): Promise<User> => {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      handleAuthStatus(response);
       throw new Error(extractErrorMessage(data, 'Failed to authenticate user'));
     }
     return data;
@@ -137,6 +146,7 @@ export const sendChatMessageApi = async (
 
   const data = await response.json();
   if (!response.ok) {
+    handleAuthStatus(response);
     throw new Error(data.detail || 'Failed to send message');
   }
   return data;
@@ -153,6 +163,7 @@ export const listConversationsApi = async (token: string): Promise<ConversationL
 
   const data = await response.json();
   if (!response.ok) {
+    handleAuthStatus(response);
     throw new Error(data.detail || 'Failed to list conversations');
   }
   return data;
@@ -173,6 +184,7 @@ export const createConversationApi = async (
 
   const data = await response.json();
   if (!response.ok) {
+    handleAuthStatus(response);
     throw new Error(data.detail || 'Failed to create conversation');
   }
   return data;
@@ -192,6 +204,7 @@ export const getConversationDetailApi = async (
 
   const data = await response.json();
   if (!response.ok) {
+    handleAuthStatus(response);
     throw new Error(data.detail || 'Failed to load conversation details');
   }
   return data;
@@ -209,6 +222,7 @@ export const deleteConversationApi = async (
   });
 
   if (!response.ok && response.status !== 204) {
+    handleAuthStatus(response);
     const data = await response.json().catch(() => ({}));
     throw new Error(data.detail || 'Failed to delete conversation');
   }
@@ -229,6 +243,7 @@ export const submitFeedbackApi = async (
 
   const data = await response.json();
   if (!response.ok) {
+    handleAuthStatus(response);
     throw new Error(data.detail || 'Failed to submit feedback');
   }
   return data;

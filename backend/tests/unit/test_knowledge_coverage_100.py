@@ -58,7 +58,7 @@ def seeded_db():
     p_hod_civil = Person(name="Dr. Vijayakumar Natesan", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="civilhod@mits.ac.in")
     p_hod_cst = Person(name="Dr. K. Dinesh", title="Dr.", designation="Associate Professor & Head", qualification="Ph.D.", email="csthod@mits.ac.in")
     p_hod_aiml = Person(name="Dr. S. Padma", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="aimlhod@mits.ac.in")
-    p_hod_mba = Person(name="Dr. R. Varadarajan", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mbahod@mits.ac.in")
+    p_hod_mba = Person(name="Dr. Bhanu Sree Reddy", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mbahod@mits.ac.in")
     p_hod_mca = Person(name="Dr. N. Naveen Kumar", title="Dr.", designation="Professor & Head of Department", qualification="Ph.D.", email="mcahod@mits.ac.in")
 
     session.add_all([
@@ -91,7 +91,7 @@ def seeded_db():
     d_eee = Department(id=4, code="EEE", name="Department of Electrical & Electronics Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Manavaalan Gunasekaran", hod_person_id=p_hod_eee.id, email="eeehod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
     d_mech = Department(id=5, code="MECH", name="Department of Mechanical Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. S. Bhaskaran", hod_person_id=p_hod_mech.id, email="mechhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
     d_civil = Department(id=6, code="CIVIL", name="Department of Civil Engineering", school="School of Engineering", school_id=s_eng.id, hod_name="Dr. Vijayakumar Natesan", hod_person_id=p_hod_civil.id, email="civilhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
-    d_mba = Department(id=7, code="MBA", name="Department of Management Studies (BBA & MBA)", school="School of Management", school_id=s_mgmt.id, hod_name="Dr. R. Varadarajan", hod_person_id=p_hod_mba.id, email="mbahod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
+    d_mba = Department(id=7, code="MBA", name="Department of Management Studies (BBA & MBA)", school="School of Management", school_id=s_mgmt.id, hod_name="Dr. Bhanu Sree Reddy", hod_person_id=p_hod_mba.id, email="mbahod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
     d_mca = Department(id=8, code="MCA", name="Department of Computer Applications (BCA & MCA)", school="School of Computing", school_id=s_comp.id, hod_name="Dr. N. Naveen Kumar", hod_person_id=p_hod_mca.id, email="mcahod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
     d_cst = Department(id=12, code="CST", name="Department of Computer Science and Technology (CST)", school="School of Computing", school_id=s_comp.id, hod_name="Dr. K. Dinesh", hod_person_id=p_hod_cst.id, email="csthod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
     d_aiml = Department(id=14, code="CSE-AIML", name="Department of Computer Science & Engineering (Artificial Intelligence & Machine Learning)", school="School of AI & ML", school_id=s_comp.id, hod_name="Dr. S. Padma", hod_person_id=p_hod_aiml.id, email="aimlhod@mits.ac.in", source_url="https://mits.ac.in/departmentheads")
@@ -355,7 +355,7 @@ QUESTIONS_DATASET = [
     ("Who is the HOD of Civil Engineering?", "HOD", "Dr. Vijayakumar Natesan"),
     ("Who is the Head of Computer Science and Technology?", "HOD", "Dr. K. Dinesh"),
     ("Who is the HOD of CSE AIML?", "HOD", "Dr. S. Padma"),
-    ("Who is the HOD of MBA department?", "HOD", "Dr. R. Varadarajan"),
+    ("Who is the HOD of MBA department?", "HOD", "Dr. Bhanu Sree Reddy"),
     ("Who is the HOD of MCA department?", "HOD", "Dr. N. Naveen Kumar"),
     ("Who are the Heads of Departments?", "HOD_LIST", "CSE"),
 

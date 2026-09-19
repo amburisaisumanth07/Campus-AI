@@ -1,5 +1,5 @@
-import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { HealthStatus } from '../components/HealthStatus';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,11 +11,20 @@ import {
   MessageSquare,
   Globe,
   Settings,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export const MainLayout: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Automatically close mobile menu when navigating to a new route
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -24,13 +33,49 @@ export const MainLayout: React.FC = () => {
 
   return (
     <div className="layout-container">
-      <aside className="sidebar">
+      {/* Mobile Topbar Navigation (< 1024px) */}
+      <header className="mobile-header-bar">
+        <div className="mobile-brand">
+          <BookOpen className="logo-icon" size={24} />
+          <span className="mobile-brand-title">CampusAI</span>
+        </div>
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          onClick={() => setIsMobileNavOpen((prev) => !prev)}
+          aria-label={isMobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={isMobileNavOpen}
+        >
+          {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </header>
+
+      {/* Backdrop overlay for mobile drawer */}
+      {isMobileNavOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Main Sidebar (Drawer on mobile/tablet, Sticky on desktop) */}
+      <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <BookOpen className="logo-icon" size={28} />
-          <div>
+          <div className="sidebar-title-box">
             <h1>CampusAI</h1>
             <span className="app-subtitle">College Knowledge Platform</span>
           </div>
+          {/* Mobile close button inside drawer */}
+          <button
+            type="button"
+            className="sidebar-drawer-close"
+            onClick={() => setIsMobileNavOpen(false)}
+            aria-label="Close sidebar"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {isAuthenticated && user && (
@@ -73,6 +118,10 @@ export const MainLayout: React.FC = () => {
               <NavLink to="/admin/sources" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
                 <Globe size={19} />
                 <span>Knowledge Sources</span>
+              </NavLink>
+              <NavLink to="/admin/coverage" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+                <Shield size={19} />
+                <span>Coverage Audit</span>
               </NavLink>
             </>
           )}

@@ -60,9 +60,9 @@ DEPT_CODE_MAPPING = {
 # Authoritative fallbacks for departments hosted under school pages if missing on /departmentheads
 OFFICIAL_KNOWN_HODS = {
     "MBA": {
-        "name": "Dr. R. Varadarajan",
+        "name": "Dr. Bhanu Sree Reddy",
         "designation": "Professor & Head - Management Studies",
-        "profile_url": "https://mits.ac.in/school-of-management",
+        "profile_url": "https://mits.ac.in/department/5",
     },
     "CST": {
         "name": "Dr. K. Dinesh",

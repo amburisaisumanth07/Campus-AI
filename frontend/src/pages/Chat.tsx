@@ -29,6 +29,7 @@ export const ChatPage: React.FC = () => {
   const [isConversationsLoading, setIsConversationsLoading] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
 
   // Fetch conversation list
   const loadConversations = useCallback(async () => {
@@ -56,6 +57,7 @@ export const ChatPage: React.FC = () => {
       if (!token) return;
       setActiveId(convId);
       setError(null);
+      setIsMobileSidebarOpen(false);
       try {
         const detail = await getConversationDetailApi(token, convId);
         setMessages(
@@ -78,24 +80,24 @@ export const ChatPage: React.FC = () => {
   );
 
   // Create new conversation explicitly
-  const handleNewConversation = async () => {
+  const handleNewConversation = useCallback(async () => {
     if (!token) return;
     try {
       setError(null);
+      setIsMobileSidebarOpen(false);
       const newConv = await createConversationApi(token, 'New Chat');
       setConversations((prev) => [newConv, ...prev]);
       setActiveId(newConv.id);
       setMessages([]);
     } catch (err: any) {
       console.error("Error creating new conversation:", err);
-      // Fallback to resetting active session
       setActiveId(null);
       setMessages([]);
     }
-  };
+  }, [token]);
 
   // Delete conversation
-  const handleDeleteConversation = async (convId: number) => {
+  const handleDeleteConversation = useCallback(async (convId: number) => {
     if (!token) return;
     try {
       setError(null);
@@ -109,10 +111,10 @@ export const ChatPage: React.FC = () => {
       console.error(`Error deleting conversation ${convId}:`, err);
       setError(err.message || "Failed to delete conversation.");
     }
-  };
+  }, [token, activeId]);
 
-  // Send message
-  const handleSendMessage = async (
+  // Send message - strictly isolated local chat loading, never triggers auth
+  const handleSendMessage = useCallback(async (
     userText: string,
     department?: string,
     academicYear?: string
@@ -122,9 +124,9 @@ export const ChatPage: React.FC = () => {
     setError(null);
     setIsSending(true);
 
-    // Optimistically show user message
-    const tempUserMsg = {
-      role: 'user' as const,
+    // Optimistically append user message to chat UI
+    const tempUserMsg: ChatUIMessage = {
+      role: 'user',
       content: userText,
     };
     setMessages((prev) => [...prev, tempUserMsg]);
@@ -137,16 +139,14 @@ export const ChatPage: React.FC = () => {
         academic_year: academicYear,
       });
 
-      // Update active conversation ID
       if (resp.conversation_id) {
         setActiveId(resp.conversation_id);
       }
 
-      // Add assistant response with citations
-      const assistantMsg = {
+      const assistantMsg: ChatUIMessage = {
         id: resp.message_id,
         conversation_id: resp.conversation_id,
-        role: 'assistant' as const,
+        role: 'assistant',
         content: resp.answer,
         citations: resp.sources,
         grounded: resp.grounded,
@@ -156,13 +156,12 @@ export const ChatPage: React.FC = () => {
       };
 
       setMessages((prev) => {
-        // Replace temp message if server returned user_message
         const cleaned = prev.slice(0, prev.length - 1);
-        const actualUserMsg = resp.user_message
+        const actualUserMsg: ChatUIMessage = resp.user_message
           ? {
               id: resp.user_message.id,
               conversation_id: resp.user_message.conversation_id,
-              role: 'user' as const,
+              role: 'user',
               content: resp.user_message.content,
               created_at: resp.user_message.created_at,
             }
@@ -171,27 +170,32 @@ export const ChatPage: React.FC = () => {
         return [...cleaned, actualUserMsg, assistantMsg];
       });
 
-      // Refresh conversation list in sidebar
+      // Refresh sidebar conversation list
       loadConversations();
     } catch (err: any) {
       console.error("Error sending chat message:", err);
-      setError(err.message || "Unable to send message to CampusAI. Please try again.");
+      if (err.message && (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized'))) {
+        setError("Your session has expired. Please log in again.");
+      } else {
+        setError(err.message || "Unable to send message to CampusAI. Please try again.");
+      }
     } finally {
       setIsSending(false);
     }
-  };
+  }, [token, activeId, isSending, loadConversations]);
 
-  // Process initial query passed from Student Dashboard
+  // Process initial query passed from Student Dashboard (supports both initialMessage and initialQuery)
   useEffect(() => {
-    const query = (location.state as any)?.initialQuery;
-    if (query && token && !initialQueryProcessedRef.current && !isSending) {
+    const rawState = location.state as any;
+    const query = rawState?.initialMessage || rawState?.initialQuery;
+    if (query && token && !initialQueryProcessedRef.current) {
       initialQueryProcessedRef.current = true;
       handleSendMessage(query);
     }
   }, [location.state, token, handleSendMessage]);
 
   // Submit feedback
-  const handleFeedback = async (messageId: number, rating: FeedbackRating, comment?: string) => {
+  const handleFeedback = useCallback(async (messageId: number, rating: FeedbackRating, comment?: string) => {
     if (!token) return;
     try {
       const fb = await submitFeedbackApi(token, {
@@ -209,20 +213,31 @@ export const ChatPage: React.FC = () => {
       console.error("Feedback error:", err);
       setError(err.message || "Failed to submit feedback.");
     }
-  };
+  }, [token]);
 
   const activeConv = conversations.find((c) => c.id === activeId);
 
   return (
-    <div className="chat-page-container">
-      <ConversationSidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelectConversation={selectConversation}
-        onNewConversation={handleNewConversation}
-        onDeleteConversation={handleDeleteConversation}
-        isLoading={isConversationsLoading}
-      />
+    <div className={`chat-page-container ${isMobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
+      {/* Mobile backdrop for chat history drawer */}
+      {isMobileSidebarOpen && (
+        <div
+          className="chat-sidebar-backdrop"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <div className={`chat-sidebar-wrapper ${isMobileSidebarOpen ? 'open' : ''}`}>
+        <ConversationSidebar
+          conversations={conversations}
+          activeId={activeId}
+          onSelectConversation={selectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
+          isLoading={isConversationsLoading}
+        />
+      </div>
 
       <ChatWindow
         messages={messages}
@@ -231,6 +246,8 @@ export const ChatPage: React.FC = () => {
         error={error}
         onSendMessage={handleSendMessage}
         onFeedback={handleFeedback}
+        onToggleSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+        isSidebarOpen={isMobileSidebarOpen}
       />
     </div>
   );

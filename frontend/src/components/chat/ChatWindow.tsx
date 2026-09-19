@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Bot, Sparkles, AlertCircle, Loader2, BookOpen } from 'lucide-react';
+import { Bot, Sparkles, AlertCircle, Loader2, BookOpen, MessageSquare } from 'lucide-react';
 import type { FeedbackRating, ChatUIMessage } from '../../types/api';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
@@ -11,6 +11,8 @@ interface ChatWindowProps {
   error: string | null;
   onSendMessage: (message: string, department?: string, academicYear?: string) => Promise<void>;
   onFeedback?: (messageId: number, rating: FeedbackRating, comment?: string) => Promise<void>;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -20,6 +22,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   error,
   onSendMessage,
   onFeedback,
+  onToggleSidebar,
+  isSidebarOpen,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -38,13 +42,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <header className="chat-window-header">
         <div className="header-title-box">
           <Bot size={22} className="header-bot-icon" />
-          <div>
+          <div className="header-text-container">
             <h2>{activeTitle || 'CampusAI Assistant'}</h2>
             <span className="header-subtitle">
               Document-Grounded Student Knowledge System
             </span>
           </div>
         </div>
+
+        {onToggleSidebar && (
+          <button
+            type="button"
+            className={`mobile-chat-history-btn ${isSidebarOpen ? 'active' : ''}`}
+            onClick={onToggleSidebar}
+            aria-label="Toggle chat history"
+            title="Toggle conversation list"
+          >
+            <MessageSquare size={16} />
+            <span className="btn-label">Chats</span>
+          </button>
+        )}
       </header>
 
       {error && (
@@ -93,7 +110,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </div>
             <div className="message-content-box loading-box">
               <Loader2 size={18} className="spin loading-icon" />
-              <span>CampusAI is thinking and searching college documents...</span>
+              <span>AI is thinking...</span>
             </div>
           </div>
         )}

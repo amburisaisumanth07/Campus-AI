@@ -11,6 +11,7 @@ import { Dashboard } from './pages/Dashboard';
 import { ChatPage } from './pages/Chat';
 import { Admin } from './pages/Admin';
 import { AdminSources } from './pages/AdminSources';
+import { AdminCoverage } from './pages/AdminCoverage';
 import { AnnouncementDetail } from './pages/AnnouncementDetail';
 import { AcademicCalendarPage } from './pages/AcademicCalendarPage';
 import { ExaminationsPage } from './pages/ExaminationsPage';
@@ -53,6 +54,7 @@ const App: React.FC = () => {
               <Route element={<MainLayout />}>
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/sources" element={<AdminSources />} />
+                <Route path="/admin/coverage" element={<AdminCoverage />} />
               </Route>
             </Route>
 

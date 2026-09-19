@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User } from '../types/api';
 import { getMeApi } from '../services/api';
 
@@ -12,47 +12,120 @@ interface AuthContextType {
 }
 
 const TOKEN_KEY = 'campusai_token';
+const USER_KEY = 'campusai_user';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  });
 
-  useEffect(() => {
-    const initAuth = async () => {
-      if (token) {
-        try {
-          const userData = await getMeApi(token);
-          setUser(userData);
-        } catch (error) {
-          console.error("Token verification failed:", error);
-          localStorage.removeItem(TOKEN_KEY);
-          setToken(null);
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    };
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const storedUser = localStorage.getItem(USER_KEY);
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      return null;
+    }
+  });
 
-    initAuth();
-  }, [token]);
+  // Only show initial loading screen if we have a token stored but no user profile cached yet
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    try {
+      const savedToken = localStorage.getItem(TOKEN_KEY);
+      const savedUser = localStorage.getItem(USER_KEY);
+      return Boolean(savedToken && !savedUser);
+    } catch {
+      return false;
+    }
+  });
 
-  const login = async (newToken: string): Promise<User> => {
-    localStorage.setItem(TOKEN_KEY, newToken);
-    setToken(newToken);
-    const userData = await getMeApi(newToken);
-    setUser(userData);
-    return userData;
-  };
-
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+  const logout = useCallback(() => {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch (e) {
+      console.error("Failed to clear auth storage:", e);
+    }
     setToken(null);
     setUser(null);
+    setIsLoading(false);
+  }, []);
+
+  // Listen for global unauthorized events (HTTP 401 from any API call)
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('campusai:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('campusai:unauthorized', handleUnauthorized);
+    };
+  }, [logout]);
+
+  // Initial startup verification: run ONCE when the app loads
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyInitialSession = async () => {
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (!currentToken) {
+        if (isMounted) {
+          setUser(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const userData = await getMeApi(currentToken);
+        if (isMounted) {
+          setUser(userData);
+          try {
+            localStorage.setItem(USER_KEY, JSON.stringify(userData));
+          } catch (e) {
+            console.error("Failed to persist user profile:", e);
+          }
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Initial session verification failed:", error);
+        if (isMounted) {
+          logout();
+        }
+      }
+    };
+
+    verifyInitialSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [logout]);
+
+  const login = async (newToken: string): Promise<User> => {
+    try {
+      localStorage.setItem(TOKEN_KEY, newToken);
+    } catch (e) {
+      console.error("Failed to save token:", e);
+    }
+    setToken(newToken);
+
+    const userData = await getMeApi(newToken);
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(userData));
+    } catch (e) {
+      console.error("Failed to save user profile:", e);
+    }
+    setUser(userData);
+    setIsLoading(false);
+    return userData;
   };
 
   return (
@@ -60,7 +133,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         token,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(user && token),
         isLoading,
         login,
         logout,
