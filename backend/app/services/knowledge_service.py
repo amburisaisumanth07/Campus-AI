@@ -212,6 +212,7 @@ def resolve_department(
 def resolve_hod(
     db: Session,
     dept_code: Optional[str] = None,
+    is_historical: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """Resolve Head of Department (HOD) for a given department or list all HODs."""
     if dept_code:
@@ -243,26 +244,46 @@ def resolve_hod(
         hod_desig = canon.hod_designation if canon else (dept.hod_designation if dept else "Head of Department")
         official_url = canon.source_url if canon else f"{OFFICIAL_MITS_BASE_URL}/departmentheads"
 
-        lines = [
-            f"=== OFFICIAL MITS HOD RECORD: {official_name} ({official_code}) ===",
-            f"Department: {official_name} ({official_code})",
-            f"Head of Department (HOD): {hod_name}",
-            f"Designation: {hod_desig}",
-        ]
-        if dept and dept.hod_person:
-            p = dept.hod_person
-            if p.qualification:
-                lines.append(f"Qualification: {p.qualification}")
-            if p.email:
-                lines.append(f"Email: {p.email}")
-            if p.phone:
-                lines.append(f"Phone: {p.phone}")
-            if p.profile_url:
-                lines.append(f"Profile: {p.profile_url}")
-        elif dept and dept.email:
-            lines.append(f"Email: {dept.email}")
+        if is_historical:
+            lines = [
+                f"Department:\n{official_name} ({official_code})" if official_code else f"Department:\n{official_name}",
+                f"\nHistorical HOD Information:",
+                f"Past administrative records for the Department of {official_name} are archived in institutional history. The current official HOD administering the department is {hod_name} ({hod_desig}).",
+                f"\nStatus:\nHistorical record",
+                f"\nSource:\nOfficial MITS {official_code} Department",
+                f"Official Source: {official_url}",
+            ]
+        else:
+            lines = [
+                f"Department:\n{official_name} ({official_code})" if official_code else f"Department:\n{official_name}",
+                f"\nCurrent HOD:\n{hod_name}",
+                f"\nDesignation:\n{hod_desig}",
+            ]
+            fac = None
+            if dept and dept.hod_id:
+                fac = db.query(Faculty).filter(Faculty.id == dept.hod_id, Faculty.is_active == True).first()
+            if not fac and dept:
+                fac = db.query(Faculty).filter(
+                    Faculty.department_id == dept.id,
+                    Faculty.name.ilike(f"%{hod_name.split()[-1]}%"),
+                    Faculty.is_active == True,
+                ).first()
 
-        lines.append(f"Official Source: {official_url}")
+            if fac:
+                if fac.qualification:
+                    lines.append(f"Qualification: {fac.qualification}")
+                if fac.email:
+                    lines.append(f"Email: {fac.email}")
+                if fac.phone:
+                    lines.append(f"Phone: {fac.phone}")
+                if fac.profile_url:
+                    lines.append(f"Profile: {fac.profile_url}")
+            elif dept and dept.email:
+                lines.append(f"Email: {dept.email}")
+
+            lines.append(f"\nSource:\nOfficial MITS {official_code} Department")
+            lines.append("\nStatus:\nCurrent official source")
+            lines.append(f"Official Source: {official_url}")
 
         citations = [
             _make_citation(
@@ -283,6 +304,7 @@ def resolve_hod(
     lines = [
         "=== OFFICIAL MITS HEADS OF DEPARTMENTS (HODs) ===",
         f"Source: {OFFICIAL_MITS_BASE_URL}/departmentheads",
+        "Status: Current official source",
         "",
     ]
     citations = [
@@ -315,13 +337,17 @@ def resolve_faculty(
     designation_filter: Optional[str] = None,
     is_count_query: bool = False,
     limit: Optional[int] = None,
+    is_historical: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     Resolve faculty members by department or specific name using exact SQL queries only.
     Never uses semantic similarity search. Returns 100% complete faculty rosters.
     Follows the Department-Scoped Answer Contract.
     """
-    query = db.query(Faculty).filter(Faculty.is_active == True, Faculty.is_valid == True)  # noqa: E712
+    if is_historical:
+        query = db.query(Faculty).filter(Faculty.is_active == False)
+    else:
+        query = db.query(Faculty).filter(Faculty.is_active == True, Faculty.is_valid == True)  # noqa: E712
 
     canon_dept: Optional[CanonicalDepartment] = None
     dept_obj: Optional[Department] = None
@@ -399,9 +425,16 @@ def resolve_faculty(
     hod_name = canon_dept.hod_name if canon_dept else (dept_obj.hod_name or dept_obj.hod if dept_obj else "N/A")
     source_url = canon_dept.official_url if canon_dept else (dept_obj.source_url if dept_obj else f"{OFFICIAL_MITS_BASE_URL}/faculty-information")
 
+    status_label = "Historical records" if is_historical else "Current official source"
+
     if not faculty_list:
+        msg = (
+            f"The official MITS archive currently contains no inactive historical faculty records for this department ({dept_name})."
+            if is_historical
+            else f"The official MITS data currently contains no faculty records for this department ({dept_name})."
+        )
         return {
-            "text": f"The official MITS data currently contains no faculty records for this department ({dept_name}).",
+            "text": msg,
             "citations": [
                 _make_citation(
                     title=f"MITS Official Faculty Directory - {dept_name}",
@@ -415,8 +448,9 @@ def resolve_faculty(
 
     lines = [
         f"Department:\n{dept_name} ({dept_code_str})" if dept_code_str else f"Department:\n{dept_name}",
-        f"\nHOD:\n{hod_name}",
+        f"\nCurrent HOD:\n{hod_name}",
         f"\nTotal Faculty:\n{len(faculty_list)}",
+        f"\nStatus:\n{status_label}",
         "\nFaculty:",
     ]
 
@@ -427,6 +461,7 @@ def resolve_faculty(
         profile_str = f" | Profile: {f.profile_url}" if f.profile_url else ""
         lines.append(f"{idx}. {f.name} - {f.designation or 'Faculty Member'}{qual_str}{spec_str}{email_str}{profile_str}")
 
+    lines.append(f"\nSource:\nOfficial MITS {dept_code_str or dept_name} Department")
     lines.append(f"\nSources:\n{source_url}")
 
     citations = [
@@ -1133,11 +1168,13 @@ def resolve_structured_query(
         }
 
     try:
+        is_historical = getattr(routed_query, "is_historical", False) or entities.get("is_historical", False)
+
         if intent == QueryIntent.ROLE_LOOKUP:
             role_code = entities.get("role_code")
             if role_code == "HOD":
                 dept_code = entities.get("department_code")
-                return resolve_hod(db, dept_code=dept_code)
+                return resolve_hod(db, dept_code=dept_code, is_historical=is_historical)
             return resolve_leadership(db, role_code=role_code)
 
         elif intent == QueryIntent.DEPARTMENT_LOOKUP:
@@ -1155,6 +1192,7 @@ def resolve_structured_query(
                 person_name=person_name,
                 designation_filter=designation_filter,
                 is_count_query=is_count_query,
+                is_historical=is_historical,
             )
 
         elif intent == QueryIntent.PERSON_LOOKUP:

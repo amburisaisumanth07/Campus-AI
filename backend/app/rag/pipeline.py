@@ -133,7 +133,10 @@ def run_pipeline(
     if structured_result and structured_result.get("found") and not routed.requires_rag:
         t0_llm = time.perf_counter()
         try:
-            if structured_result.get("is_ambiguous") or routed.intent == QueryIntent.FACULTY_LOOKUP:
+            if (
+                structured_result.get("is_ambiguous")
+                or routed.intent in (QueryIntent.FACULTY_LOOKUP, QueryIntent.ROLE_LOOKUP, QueryIntent.DEPARTMENT_LOOKUP, QueryIntent.CONTACT)
+            ):
                 answer = structured_text
             else:
                 answer = llm.generate_grounded_answer(

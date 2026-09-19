@@ -48,6 +48,7 @@ class RoutedQuery:
     metadata_filters: Optional[Dict[str, Any]] = None
     is_ambiguous: bool = False
     clarification_question: Optional[str] = None
+    is_historical: bool = False
 
 
 # Known department code synonyms and mapping
@@ -183,8 +184,18 @@ def classify_query(query: str) -> RoutedQuery:
     if person:
         entities["person_name"] = person
 
+    # Detect historical intent (e.g. past HOD, previous faculty, former officeholder, earlier years)
+    is_historical = bool(
+        re.search(
+            r"\b(previous|former|earlier|past|prior|ex-hod|ex-faculty|historical|history of (the )?hod|was the hod|were the faculty|in 20\d\d)\b",
+            lower,
+        )
+    )
+    if is_historical:
+        entities["is_historical"] = True
+
     # 1. Check MULTI_SOURCE (asks about HOD/person AND program/rules/labs)
-    has_hod_keyword = bool(re.search(r"\b(hods?|heads? of (the )?departments?|head of [a-z\s]+|head of)\b", lower))
+    has_hod_keyword = bool(re.search(r"\b(hods?|heads? of (the )?departments?|head of [a-z\s]+|head of|department heads?)\b", lower))
     if dept and ("head" in lower or "hod" in lower):
         has_hod_keyword = True
 
@@ -197,6 +208,7 @@ def classify_query(query: str) -> RoutedQuery:
             extracted_entities=entities,
             requires_structured=True,
             requires_rag=True,
+            is_historical=is_historical,
         )
 
     # 2. Check ATTENDANCE specifically (must take precedence over generic academic rules)
@@ -209,6 +221,7 @@ def classify_query(query: str) -> RoutedQuery:
             requires_structured=True,
             requires_rag=True,
             metadata_filters={"category": "attendance"},
+            is_historical=is_historical,
         )
 
     # 3. Check ROLE_LOOKUP (e.g. Chancellor, VC, Registrar, Principal, CoE)
@@ -222,6 +235,7 @@ def classify_query(query: str) -> RoutedQuery:
                 extracted_entities=entities,
                 requires_structured=True,
                 requires_rag=False,
+                is_historical=is_historical,
             )
 
     # 4. Check HOD (Head of Department) Lookup
@@ -237,6 +251,7 @@ def classify_query(query: str) -> RoutedQuery:
                 requires_rag=False,
                 is_ambiguous=True,
                 clarification_question=amb["clarification_question"],
+                is_historical=is_historical,
             )
         return RoutedQuery(
             original_query=query,
@@ -245,10 +260,16 @@ def classify_query(query: str) -> RoutedQuery:
             extracted_entities=dict(role_code="HOD", **entities),
             requires_structured=True,
             requires_rag=False,
+            is_historical=is_historical,
         )
 
     # 5. Check FACULTY_LOOKUP (e.g. list faculty, faculty members, professors, who teaches, faculty count)
-    is_faculty_query = bool(re.search(r"\b(faculty|professors?|lecturers?|teachers?|teaches|faculty list|list (of )?faculty|all faculty|how many faculty|faculty count)\b", lower))
+    is_faculty_query = bool(
+        re.search(
+            r"\b(faculty|professors?|lecturers?|teachers?|teaches|faculty list|list (of )?faculty|all faculty|how many faculty|faculty count|working in|works in|currently working in|faculty members?|staff in|teaching staff|roster)\b",
+            lower,
+        )
+    )
     if is_faculty_query:
         # Check designation specifics: professors, assistant professors, associate professors
         if re.search(r"\b(assistant professors?|asst\.? professors?)\b", lower):
@@ -271,6 +292,7 @@ def classify_query(query: str) -> RoutedQuery:
                 requires_rag=False,
                 is_ambiguous=True,
                 clarification_question=amb["clarification_question"],
+                is_historical=is_historical,
             )
 
         return RoutedQuery(
@@ -280,6 +302,7 @@ def classify_query(query: str) -> RoutedQuery:
             extracted_entities=entities,
             requires_structured=True,
             requires_rag=False,
+            is_historical=is_historical,
         )
 
     # 6. Check PERSON_LOOKUP (query has named person or asks "Who is Dr...")
