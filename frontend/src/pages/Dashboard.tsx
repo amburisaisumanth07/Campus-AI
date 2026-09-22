@@ -5,7 +5,11 @@ import {
   Shield,
   Search,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  BookOpen,
+  GraduationCap,
+  FileText,
+  Briefcase,
 } from 'lucide-react';
 import { canUploadDocuments } from '../utils/permissions';
 
@@ -128,6 +132,80 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Institutional Knowledge Summary Grid */}
+      <div className="dashboard-summary-grid">
+        <div
+          className="summary-card"
+          onClick={() => handleSuggestionClick('What are the academic regulations, grading system and SGPA calculation rules?')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="summary-card-icon-wrap blue">
+            <BookOpen size={22} />
+          </div>
+          <div className="summary-card-content">
+            <h4>Academic & Grading Rules</h4>
+            <p>R20/R25 regulations, SGPA & CGPA evaluation scales, attendance (75%), and promotion rules.</p>
+            <span className="card-action-link">
+              Ask Regulations <ArrowRight size={14} />
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="summary-card"
+          onClick={() => navigate('/departments')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="summary-card-icon-wrap purple">
+            <GraduationCap size={22} />
+          </div>
+          <div className="summary-card-content">
+            <h4>Departments & Faculty</h4>
+            <p>Explore all 13 canonical academic departments, official HODs, and 301 verified active faculty rosters.</p>
+            <span className="card-action-link">
+              View Directory <ArrowRight size={14} />
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="summary-card"
+          onClick={() => navigate('/examinations')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="summary-card-icon-wrap emerald">
+            <FileText size={22} />
+          </div>
+          <div className="summary-card-content">
+            <h4>Examination Policies</h4>
+            <p>SEE & CIE weightage, hall ticket criteria, recounting & revaluation procedures, and exam guidelines.</p>
+            <span className="card-action-link">
+              View Policies <ArrowRight size={14} />
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="summary-card"
+          onClick={() => navigate('/placements')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="summary-card-icon-wrap amber">
+            <Briefcase size={22} />
+          </div>
+          <div className="summary-card-content">
+            <h4>Placement & Career Cell</h4>
+            <p>Placement statistics, verified recruiting partners, training drives, and campus recruitment records.</p>
+            <span className="card-action-link">
+              Explore Placements <ArrowRight size={14} />
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

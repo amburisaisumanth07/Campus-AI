@@ -92,12 +92,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } catch (e) {
             console.error("Failed to persist user profile:", e);
           }
-          setIsLoading(false);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Initial session verification failed:", error);
-        if (isMounted) {
+        // Only log out if it was an explicit auth error (401, 403, or invalid token)
+        const isAuthError =
+          error?.message?.includes('401') ||
+          error?.message?.includes('403') ||
+          error?.message?.toLowerCase().includes('unauthorized') ||
+          error?.message?.toLowerCase().includes('invalid token');
+
+        if (isAuthError && isMounted) {
           logout();
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
     };

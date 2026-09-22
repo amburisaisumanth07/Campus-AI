@@ -31,6 +31,8 @@ export const MainLayout: React.FC = () => {
     navigate('/login');
   };
 
+  const isChatRoute = location.pathname === '/chat';
+
   return (
     <div className="layout-container">
       {/* Mobile Topbar Navigation (< 1024px) */}
@@ -146,7 +148,7 @@ export const MainLayout: React.FC = () => {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className={`main-content ${isChatRoute ? 'chat-layout-active' : ''}`}>
         <Outlet />
       </main>
     </div>

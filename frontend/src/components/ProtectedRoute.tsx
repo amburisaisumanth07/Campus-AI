@@ -5,9 +5,9 @@ import { Loader2 } from 'lucide-react';
 import { canAccessAdminPanel } from '../utils/permissions';
 
 export const ProtectedRoute: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="loading-screen">
         <Loader2 className="spin" size={32} />
@@ -16,7 +16,7 @@ export const ProtectedRoute: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -26,7 +26,7 @@ export const ProtectedRoute: React.FC = () => {
 export const AdminRoute: React.FC = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  if (isLoading) {
+  if (isLoading && !user) {
     return (
       <div className="loading-screen">
         <Loader2 className="spin" size={32} />

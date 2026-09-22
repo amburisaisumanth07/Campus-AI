@@ -874,6 +874,16 @@ html.dark .nav-link.active {
   width: 100%;
 }
 
+.main-content.chat-layout-active {
+  padding: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  height: 100vh;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ── 6. HEALTH STATUS COMPONENT ── */
 .health-status {
   display: flex;
@@ -1111,24 +1121,143 @@ html.dark .nav-link.active {
   box-shadow: none !important;
 }
 
-/* ── 8. CHAT ASSISTANT PAGE STYLES ── */
-.chat-page-container {
+/* ── Dashboard Quick Access Institutional Summary Grid ── */
+.dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.summary-card {
   display: flex;
-  height: calc(100vh - 4.5rem);
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.35rem 1.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
   box-shadow: var(--shadow);
 }
 
-.chat-sidebar {
-  width: 290px;
-  min-width: 290px;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+.summary-card-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.summary-card-icon-wrap.academics {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.summary-card-icon-wrap.departments {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+}
+
+.summary-card-icon-wrap.examination {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.summary-card-icon-wrap.placements {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.summary-card-content {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 0.4rem;
+}
+
+.summary-card-content h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.summary-card-content p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.card-action-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: left;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.card-action-link:hover {
+  color: var(--accent-secondary);
+  transform: translateX(3px);
+}
+
+/* ── 8. CHAT ASSISTANT PAGE STYLES ── */
+.chat-page-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg-card);
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: none;
+  position: relative;
+}
+
+.chat-sidebar-wrapper {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  height: 100%;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.chat-sidebar {
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .sidebar-top {
   padding: 1.15rem;
@@ -1245,17 +1374,23 @@ html.dark .nav-link.active {
 
 .chat-window {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-card);
   height: 100%;
+  overflow: hidden;
 }
 .chat-window-header {
-  padding: 1.15rem 1.75rem;
+  padding: 1rem 1.75rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  z-index: 5;
 }
 .header-title-box {
   display: flex;
@@ -1284,12 +1419,16 @@ html.dark .nav-link.active {
   color: var(--error);
   padding: 0.85rem 1.5rem;
   font-size: 0.875rem;
+  flex-shrink: 0;
 }
 
 .chat-messages-container {
   flex: 1;
+  min-height: 0;
+  min-width: 0;
   overflow-y: auto;
-  padding: 1.75rem;
+  overflow-x: hidden;
+  padding: 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -1483,9 +1622,12 @@ html.dark .nav-link.active {
 }
 
 .chat-input-container {
-  padding: 1.15rem 1.75rem;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 1rem 1.75rem 1.25rem;
   border-top: 1px solid var(--border-color);
   background: var(--bg-card);
+  z-index: 5;
 }
 .chat-filters-panel {
   display: flex;
@@ -3542,6 +3684,13 @@ html, body {
     box-sizing: border-box;
   }
 
+  .main-content.chat-layout-active {
+    height: calc(100vh - 58px) !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
   .admin-knowledge-banner {
     flex-direction: column;
     align-items: flex-start;
@@ -3562,11 +3711,23 @@ html, body {
     box-sizing: border-box;
   }
 
+  .main-content.chat-layout-active {
+    height: calc(100vh - 58px) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .dashboard-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
   /* Chat page responsive */
   .chat-page-container {
-    height: calc(100vh - 4.5rem);
+    height: 100% !important;
     position: relative;
-    border-radius: var(--radius-md);
+    border-radius: 0 !important;
+    border: none !important;
     margin: 0;
     overflow: hidden;
   }
@@ -3776,9 +3937,16 @@ html, body {
     padding: 0.85rem 0.65rem;
   }
 
+  .main-content.chat-layout-active {
+    height: calc(100vh - 58px) !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
   .chat-page-container {
-    height: calc(100vh - 3.85rem);
-    border-radius: var(--radius-sm);
+    height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
   }
 
   .chat-window-header {
