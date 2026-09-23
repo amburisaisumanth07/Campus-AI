@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.routes import (
     health, auth, documents, conversations, chat, feedback, sources,
     announcements, academic_calendar, examinations, departments, placements, college_info, search,
-    coverage
+    coverage, attendance
 )
 from backend.app.core.config import settings
 from backend.app.services import scheduler_service
@@ -62,6 +62,7 @@ app.include_router(departments.router, prefix="/api/departments", tags=["Departm
 app.include_router(placements.router, prefix="/api/placements", tags=["Placements"])
 app.include_router(college_info.router, prefix="/api/college", tags=["College Info"])
 app.include_router(search.router, prefix="/api/search", tags=["Global Search"])
+app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
 
 
 @app.get("/")

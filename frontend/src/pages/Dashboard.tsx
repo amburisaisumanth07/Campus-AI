@@ -6,17 +6,19 @@ import {
   Search,
   Sparkles,
   ArrowRight,
-  BookOpen,
-  GraduationCap,
-  FileText,
-  Briefcase,
+  Mic,
+  CalendarCheck,
 } from 'lucide-react';
 import { canUploadDocuments } from '../utils/permissions';
+import { VoiceInputButton } from '../components/voice/VoiceInputButton';
+import { AttendanceTrackerModal } from '../components/attendance/AttendanceTrackerModal';
 
 export const Dashboard: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isVoiceRecordingActive, setIsVoiceRecordingActive] = useState(false);
 
   const isStaff = !isAuthLoading && canUploadDocuments(user);
   const firstName = user?.name?.split(' ')[0] || user?.name || 'Student';
@@ -32,9 +34,17 @@ export const Dashboard: React.FC = () => {
     navigate('/chat', { state: { initialMessage: question } });
   };
 
+  const handleVoiceTranscript = (transcriptText: string) => {
+    setSearchQuery(transcriptText);
+    // Automatically submit to chat when speech recognized or populate input
+    if (transcriptText.trim()) {
+      navigate('/chat', { state: { initialMessage: transcriptText.trim() } });
+    }
+  };
+
   return (
-    <div className="dashboard-container" data-testid="student-dashboard">
-      {/* Admin Knowledge Banner */}
+    <div className="dashboard-container modern-clean-dashboard" data-testid="student-dashboard">
+      {/* Admin Knowledge Management Banner */}
       {isStaff && (
         <div className="admin-knowledge-banner" data-testid="staff-banner">
           <div className="banner-content">
@@ -54,158 +64,151 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Welcome Header */}
-      <div className="dashboard-welcome-area" data-testid="dashboard-welcome">
-        <div className="welcome-text">
-          <h2>Welcome back, {firstName} 👋</h2>
-          <p>Your intelligent college information hub.</p>
+      {/* Main Spacious & Focused Hero Header */}
+      <div className="dashboard-header-hero" data-testid="dashboard-welcome">
+        <div className="platform-brand-badge">
+          <Sparkles size={16} className="sparkle-icon" />
+          <span>OFFICIAL MITS KNOWLEDGE HUB</span>
         </div>
+        <h1 className="hero-platform-title">CampusAI</h1>
+        <p className="hero-platform-subtitle">College Knowledge Assistant</p>
         {user && (
-          <div className="welcome-user-info">
-            <span className={`user-role-badge ${user.role.toLowerCase()}`}>
-              {user.role}
-            </span>
-            <span className="user-email">• {user.email}</span>
-          </div>
+          <p className="hero-user-greeting">
+            Welcome back, <strong>{firstName}</strong> ({user.role})
+          </p>
         )}
       </div>
 
-      {/* Main AI Assistant Card */}
-      <div className="ai-assistant-card" data-testid="hero-card">
-        <div className="ai-card-header">
-          <div className="ai-badge">
-            <Sparkles size={14} />
-            <span>AI KNOWLEDGE ASSISTANT</span>
-          </div>
-          <h3>Ask CampusAI</h3>
-          <p>
-            Ask anything about your college, academics, examinations,
-            departments, events, placements, and more.
-          </p>
-        </div>
-
-        <form className="search-action-row" onSubmit={handleSearch}>
-          <div className="search-input-wrapper">
-            <Search size={20} className="search-icon" />
+      {/* Main Clean Ask CampusAI Search Box */}
+      <div className="dashboard-search-card" data-testid="hero-card">
+        <form className="dashboard-ask-form" onSubmit={handleSearch}>
+          <div className="search-input-field-wrapper">
+            <Search size={22} className="search-field-icon" />
             <input
               type="text"
-              placeholder="e.g. What are the rules for semester attendance and hall tickets?"
+              placeholder="Ask CampusAI anything..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="main-search-input"
+              className="dashboard-search-input"
+              data-testid="ask-campusai-input"
+              autoFocus
+            />
+            {/* Inline Microphone Button */}
+            <VoiceInputButton
+              onTranscript={handleVoiceTranscript}
+              variant="inline"
+              className="search-mic-button"
             />
           </div>
           <button
             type="submit"
-            className="primary-button ask-btn"
+            className="primary-button ask-submit-button"
             data-testid="ask-campusai-btn"
           >
-            Ask CampusAI <ArrowRight size={18} />
+            <span>Ask</span>
+            <ArrowRight size={18} />
           </button>
         </form>
 
-        <div className="suggestion-pills-container">
-          <button 
-            className="suggestion-pill"
-            onClick={() => handleSuggestionClick('Grading system & SGPA calculation')}
-          >
-            Grading system & SGPA calculation
-          </button>
-          <button 
-            className="suggestion-pill"
-            onClick={() => handleSuggestionClick('Minimum attendance requirement')}
-          >
-            Minimum attendance requirement
-          </button>
-          <button 
-            className="suggestion-pill"
-            onClick={() => handleSuggestionClick('End-semester exam rules')}
-          >
-            End-semester exam rules
-          </button>
-          <button 
-            className="suggestion-pill"
-            onClick={() => handleSuggestionClick('Placement eligibility criteria')}
-          >
-            Placement eligibility criteria
-          </button>
+        {/* Focused Curated Examples */}
+        <div className="dashboard-examples-section">
+          <span className="examples-label">Examples:</span>
+          <div className="examples-pills-row">
+            <button
+              type="button"
+              className="example-pill-btn"
+              onClick={() => handleSuggestionClick('Who is the current HOD of CSE?')}
+            >
+              "Who is the current HOD of CSE?"
+            </button>
+            <button
+              type="button"
+              className="example-pill-btn"
+              onClick={() => handleSuggestionClick('What is the minimum attendance requirement?')}
+            >
+              "What is the minimum attendance requirement?"
+            </button>
+            <button
+              type="button"
+              className="example-pill-btn"
+              onClick={() => handleSuggestionClick('When are the semester examinations?')}
+            >
+              "When are the semester examinations?"
+            </button>
+            <button
+              type="button"
+              className="example-pill-btn"
+              onClick={() => handleSuggestionClick('Show me the CSE faculty.')}
+            >
+              "Show me the CSE faculty."
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Institutional Knowledge Summary Grid */}
-      <div className="dashboard-summary-grid">
+      {/* Two Attractive Feature Cards: Voice + Official Attendance Tracker */}
+      <div className="dashboard-featured-actions-grid" data-testid="dashboard-featured-actions">
+        {/* Feature 1: Ask with Voice */}
         <div
-          className="summary-card"
-          onClick={() => handleSuggestionClick('What are the academic regulations, grading system and SGPA calculation rules?')}
+          className="featured-action-card voice-action-card"
+          onClick={() => setIsVoiceRecordingActive(true)}
           role="button"
           tabIndex={0}
+          data-testid="ask-with-voice-card"
         >
-          <div className="summary-card-icon-wrap blue">
-            <BookOpen size={22} />
+          <div className="featured-card-icon-bubble voice-bubble">
+            <Mic size={26} />
           </div>
-          <div className="summary-card-content">
-            <h4>Academic & Grading Rules</h4>
-            <p>R20/R25 regulations, SGPA & CGPA evaluation scales, attendance (75%), and promotion rules.</p>
-            <span className="card-action-link">
-              Ask Regulations <ArrowRight size={14} />
+          <div className="featured-card-content">
+            <h3>Ask with Voice</h3>
+            <p>Speak your question hands-free and get instant verified answers from CampusAI.</p>
+            <span className="featured-card-cta">
+              🎙 Start Voice Search <ArrowRight size={14} />
             </span>
           </div>
         </div>
 
+        {/* Feature 2: Official Attendance Tracker */}
         <div
-          className="summary-card"
-          onClick={() => navigate('/departments')}
+          className="featured-action-card attendance-action-card"
+          onClick={() => setIsAttendanceModalOpen(true)}
           role="button"
           tabIndex={0}
+          data-testid="attendance-tracker-card"
         >
-          <div className="summary-card-icon-wrap purple">
-            <GraduationCap size={22} />
+          <div className="featured-card-icon-bubble attendance-bubble">
+            <CalendarCheck size={26} />
           </div>
-          <div className="summary-card-content">
-            <h4>Departments & Faculty</h4>
-            <p>Explore all 13 canonical academic departments, official HODs, and 301 verified active faculty rosters.</p>
-            <span className="card-action-link">
-              View Directory <ArrowRight size={14} />
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="summary-card"
-          onClick={() => navigate('/examinations')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="summary-card-icon-wrap emerald">
-            <FileText size={22} />
-          </div>
-          <div className="summary-card-content">
-            <h4>Examination Policies</h4>
-            <p>SEE & CIE weightage, hall ticket criteria, recounting & revaluation procedures, and exam guidelines.</p>
-            <span className="card-action-link">
-              View Policies <ArrowRight size={14} />
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="summary-card"
-          onClick={() => navigate('/placements')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="summary-card-icon-wrap amber">
-            <Briefcase size={22} />
-          </div>
-          <div className="summary-card-content">
-            <h4>Placement & Career Cell</h4>
-            <p>Placement statistics, verified recruiting partners, training drives, and campus recruitment records.</p>
-            <span className="card-action-link">
-              Explore Placements <ArrowRight size={14} />
+          <div className="featured-card-content">
+            <h3>Attendance Tracker</h3>
+            <p>Check your verified attendance directly from the official MITS student portal.</p>
+            <span className="featured-card-cta">
+              📊 View Attendance <ArrowRight size={14} />
             </span>
           </div>
         </div>
       </div>
+
+      {/* Voice Trigger from Featured Card */}
+      {isVoiceRecordingActive && (
+        <VoiceInputButton
+          onTranscript={(text) => {
+            setIsVoiceRecordingActive(false);
+            handleVoiceTranscript(text);
+          }}
+          variant="inline"
+          isRecordingExternal={true}
+          onRecordingStateChange={(rec) => {
+            if (!rec) setIsVoiceRecordingActive(false);
+          }}
+        />
+      )}
+
+      {/* Official Attendance Tracker Modal */}
+      <AttendanceTrackerModal
+        isOpen={isAttendanceModalOpen}
+        onClose={() => setIsAttendanceModalOpen(false)}
+      />
     </div>
   );
 };

@@ -291,4 +291,36 @@ export interface SourceStatusResponse {
   latest_history?: WebsiteSyncHistory | null;
 }
 
+// ── Official Attendance types ───────────────────────────────────────────────────
+
+export interface AttendanceSubject {
+  code: string;
+  name: string;
+  attended: number;
+  total: number;
+  percentage: number;
+}
+
+export interface AttendanceResponse {
+  success: boolean;
+  student_name: string;
+  roll_number: string;
+  overall_percentage: number;
+  attended_classes: number;
+  total_classes: number;
+  absent_classes: number;
+  required_percentage: number;
+  is_safe: boolean;
+  status_text: string;
+  subjects: AttendanceSubject[];
+  official_source: string;
+  last_updated: string;
+}
+
+export interface AttendanceCheckRequest {
+  roll_number: string;
+  password: string;
+}
+
+
 

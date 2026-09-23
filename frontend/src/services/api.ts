@@ -9,6 +9,7 @@ import type {
   ConversationDetailResponse,
   FeedbackCreateRequest,
   FeedbackResponse,
+  AttendanceResponse,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -496,5 +497,37 @@ export const searchCollegeApi = async (query: string): Promise<SearchResponse> =
   if (!res.ok) throw new Error('Search failed');
   return res.json();
 };
+
+export const checkAttendanceApi = async (
+  rollNumber: string,
+  password: string
+): Promise<AttendanceResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/attendance/check`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ roll_number: rollNumber.trim().toUpperCase(), password }),
+  });
+
+  if (!response.ok) {
+    let errData: any;
+    try {
+      errData = await response.json();
+    } catch {
+      errData = null;
+    }
+    const msg = extractErrorMessage(
+      errData,
+      response.status === 503
+        ? 'Official attendance integration is currently unavailable.'
+        : 'Failed to retrieve attendance from official system.'
+    );
+    throw new Error(msg);
+  }
+
+  return await response.json();
+};
+
 
 
