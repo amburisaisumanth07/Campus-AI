@@ -13,6 +13,7 @@ import {
   Settings,
   Menu,
   X,
+  CalendarCheck,
 } from 'lucide-react';
 
 export const MainLayout: React.FC = () => {
@@ -106,6 +107,11 @@ export const MainLayout: React.FC = () => {
           <NavLink to="/chat" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
             <MessageSquare size={19} />
             <span>Chat Assistant</span>
+          </NavLink>
+
+          <NavLink to="/attendance" className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}>
+            <CalendarCheck size={19} />
+            <span>Attendance</span>
           </NavLink>
 
           {user?.role === 'ADMIN' && (

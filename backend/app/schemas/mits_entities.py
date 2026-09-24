@@ -173,3 +173,20 @@ class SearchResponse(BaseModel):
     query: str
     total_results: int
     results: List[SearchResultItem]
+
+
+class SubjectAttendanceItem(BaseModel):
+    name: str
+    attended: int
+    total: int
+    percentage: float
+
+
+class AttendanceTrackerResponse(BaseModel):
+    student: str
+    roll_number: str
+    overall: float
+    required: float = 75.0
+    status: str
+    subjects: List[SubjectAttendanceItem]
+

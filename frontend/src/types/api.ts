@@ -322,5 +322,22 @@ export interface AttendanceCheckRequest {
   password: string;
 }
 
+export interface SubjectAttendance {
+  name: string;
+  attended: number;
+  total: number;
+  percentage: number;
+}
+
+export interface AttendanceTrackerData {
+  student: string;
+  roll_number: string;
+  overall: number;
+  required: number;
+  status: string;
+  subjects: SubjectAttendance[];
+}
+
+
 
 

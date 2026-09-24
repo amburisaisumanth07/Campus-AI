@@ -10,6 +10,7 @@ import type {
   FeedbackCreateRequest,
   FeedbackResponse,
   AttendanceResponse,
+  AttendanceTrackerData,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -528,6 +529,35 @@ export const checkAttendanceApi = async (
 
   return await response.json();
 };
+
+export const getAttendanceApi = async (token?: string): Promise<AttendanceTrackerData> => {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/attendance`, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      handleAuthStatus(response);
+      throw new Error(extractErrorMessage(data, 'Unable to load attendance'));
+    }
+    return data;
+  } catch (error: any) {
+    if (isNetworkError(error)) {
+      throw new Error('Unable to connect to backend server at ' + API_BASE_URL + '. Please ensure the backend is running.');
+    }
+    throw error;
+  }
+};
+
 
 
 

@@ -12,6 +12,7 @@ Security Rules:
   gracefully report that the official integration is unavailable without fabricating data.
 """
 from datetime import datetime, timezone
+import math
 import re
 from typing import Dict, Any, Optional, List
 import httpx
@@ -213,3 +214,116 @@ class OfficialAttendanceService:
         raise AttendancePortalUnavailableError(
             f"Official attendance integration is currently unavailable. The portal at {OFFICIAL_MITS_STUDENT_PORTAL} requires interactive session access."
         )
+
+
+# ── Attendance Calculation & Mock Data Helpers ───────────────────────────────
+
+def calculate_subject_percentage(attended: int, total: int) -> float:
+    """Calculate subject percentage rounded to 2 decimal places."""
+    if total <= 0:
+        return 0.0
+    valid_attended = max(0, min(attended, total))
+    return round((valid_attended / total) * 100.0, 2)
+
+
+def calculate_overall_percentage(subjects: List[Dict[str, Any]]) -> float:
+    """
+    Calculate overall attendance strictly as:
+    total attended / total classes * 100
+    Does NOT average individual subject percentages.
+    """
+    if not subjects:
+        return 0.0
+    total_attended = sum(int(s.get("attended", 0)) for s in subjects)
+    total_classes = sum(int(s.get("total", 0)) for s in subjects)
+    if total_classes <= 0:
+        return 0.0
+    return round((total_attended / total_classes) * 100.0, 2)
+
+
+def determine_attendance_status(percentage: float, required: float = MINIMUM_REQUIRED_ATTENDANCE_PERCENTAGE) -> str:
+    """
+    Determine dynamic status classification:
+    - >= 75%: Requirement satisfied / Safe
+    - 65% <= percentage < 75%: Conditionally eligible
+    - < 65%: Critical
+    """
+    if percentage >= required:
+        return "Requirement satisfied"
+    if percentage >= 65.0:
+        return "Conditionally eligible"
+    return "Critical"
+
+
+def calculate_classes_can_miss(attended: int, total: int, required: float = MINIMUM_REQUIRED_ATTENDANCE_PERCENTAGE) -> int:
+    """
+    Find maximum x such that:
+    attended / (total + x) >= required / 100
+    => x <= (100 * attended - required * total) / required
+    Returns 0 if current attendance is below required or exactly at required threshold.
+    """
+    if total <= 0 or attended <= 0:
+        return 0
+    if (attended / total) * 100.0 < required:
+        return 0
+    x = math.floor((100.0 * attended - required * total) / required)
+    return max(0, int(x))
+
+
+def calculate_classes_required(attended: int, total: int, required: float = MINIMUM_REQUIRED_ATTENDANCE_PERCENTAGE) -> int:
+    """
+    Find minimum x such that:
+    (attended + x) / (total + x) >= required / 100
+    => (100 - required) * x >= required * total - 100 * attended
+    => x >= (required * total - 100 * attended) / (100 - required)
+    Returns 0 if already at or above required.
+    """
+    if total <= 0:
+        return 0
+    if (attended / total) * 100.0 >= required:
+        return 0
+    remaining_pct = 100.0 - required
+    if remaining_pct <= 0:
+        return 0
+    x = math.ceil((required * total - 100.0 * attended) / remaining_pct)
+    return max(0, int(x))
+
+
+def get_mock_attendance_data(
+    student_name: str = "Sai Sumanth",
+    roll_number: str = "24691A31N1"
+) -> Dict[str, Any]:
+    """
+    Generate mock attendance data using calculated values.
+    Uses exact subject counts and dynamically calculates subject percentages and overall attendance.
+    """
+    raw_subjects = [
+        {"name": "DBMS", "attended": 38, "total": 42},
+        {"name": "Operating Systems", "attended": 35, "total": 40},
+        {"name": "Artificial Intelligence", "attended": 31, "total": 38},
+        {"name": "Java", "attended": 45, "total": 50},
+        {"name": "Mathematics", "attended": 32, "total": 40},
+    ]
+
+    subjects = []
+    for s in raw_subjects:
+        pct = calculate_subject_percentage(s["attended"], s["total"])
+        subjects.append({
+            "name": s["name"],
+            "attended": s["attended"],
+            "total": s["total"],
+            "percentage": pct,
+        })
+
+    overall = calculate_overall_percentage(subjects)
+    status_label = determine_attendance_status(overall, required=MINIMUM_REQUIRED_ATTENDANCE_PERCENTAGE)
+
+    return {
+        "student": student_name,
+        "roll_number": roll_number,
+        "overall": overall,
+        "required": 75,
+        "status": status_label,
+        "subjects": subjects,
+    }
+

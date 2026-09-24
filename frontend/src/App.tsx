@@ -19,6 +19,7 @@ import { DepartmentsPage } from './pages/DepartmentsPage';
 import { DepartmentDetail } from './pages/DepartmentDetail';
 import { PlacementsPage } from './pages/PlacementsPage';
 import { Settings } from './pages/Settings';
+import { AttendancePage } from './pages/AttendancePage';
 import { ProtectedRoute, AdminRoute } from './components/ProtectedRoute';
 
 const App: React.FC = () => {
@@ -46,6 +47,7 @@ const App: React.FC = () => {
                 <Route path="/departments" element={<DepartmentsPage />} />
                 <Route path="/departments/:code" element={<DepartmentDetail />} />
                 <Route path="/placements" element={<PlacementsPage />} />
+                <Route path="/attendance" element={<AttendancePage />} />
               </Route>
             </Route>
 
