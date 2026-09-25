@@ -180,6 +180,8 @@ class SubjectAttendanceItem(BaseModel):
     attended: int
     total: int
     percentage: float
+    code: Optional[str] = None
+    semester: Optional[str] = None
 
 
 class AttendanceTrackerResponse(BaseModel):
@@ -189,4 +191,19 @@ class AttendanceTrackerResponse(BaseModel):
     required: float = 75.0
     status: str
     subjects: List[SubjectAttendanceItem]
+    semester: Optional[str] = None
+    academic_year: Optional[str] = None
+    student_name: Optional[str] = None
+    overall_percentage: Optional[float] = None
+    attended_classes: Optional[int] = None
+    total_classes: Optional[int] = None
+    absent_classes: Optional[int] = None
+    required_percentage: Optional[float] = None
+    is_safe: Optional[bool] = None
+    status_text: Optional[str] = None
+    official_source: Optional[str] = None
+    last_updated: Optional[str] = None
+    last_synced: Optional[str] = None
+    success: Optional[bool] = None
+
 

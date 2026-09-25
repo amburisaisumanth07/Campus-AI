@@ -294,7 +294,7 @@ export interface SourceStatusResponse {
 // ── Official Attendance types ───────────────────────────────────────────────────
 
 export interface AttendanceSubject {
-  code: string;
+  code?: string;
   name: string;
   attended: number;
   total: number;
@@ -302,19 +302,26 @@ export interface AttendanceSubject {
 }
 
 export interface AttendanceResponse {
-  success: boolean;
-  student_name: string;
+  success?: boolean;
+  student?: string;
+  student_name?: string;
   roll_number: string;
+  overall?: number;
   overall_percentage: number;
   attended_classes: number;
   total_classes: number;
   absent_classes: number;
+  required?: number;
   required_percentage: number;
   is_safe: boolean;
+  status?: string;
   status_text: string;
   subjects: AttendanceSubject[];
-  official_source: string;
-  last_updated: string;
+  official_source?: string;
+  last_updated?: string;
+  last_synced?: string;
+  semester?: string;
+  academic_year?: string;
 }
 
 export interface AttendanceCheckRequest {
@@ -324,6 +331,7 @@ export interface AttendanceCheckRequest {
 
 export interface SubjectAttendance {
   name: string;
+  code?: string;
   attended: number;
   total: number;
   percentage: number;
@@ -336,6 +344,20 @@ export interface AttendanceTrackerData {
   required: number;
   status: string;
   subjects: SubjectAttendance[];
+  semester?: string;
+  academic_year?: string;
+  student_name?: string;
+  overall_percentage?: number;
+  attended_classes?: number;
+  total_classes?: number;
+  absent_classes?: number;
+  required_percentage?: number;
+  is_safe?: boolean;
+  status_text?: string;
+  official_source?: string;
+  last_updated?: string;
+  last_synced?: string;
+  success?: boolean;
 }
 
 

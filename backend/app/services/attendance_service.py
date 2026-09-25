@@ -35,19 +35,19 @@ class AttendanceIntegrationError(Exception):
 
 class AttendanceAuthError(AttendanceIntegrationError):
     """Raised when official portal rejects credentials."""
-    def __init__(self, message: str = "Invalid MITS student credentials."):
+    def __init__(self, message: str = "Invalid MITS GEMS credentials."):
         super().__init__(message, error_type="AUTH_FAILED", status_code=401)
 
 
 class AttendancePortalUnavailableError(AttendanceIntegrationError):
     """Raised when official portal is unreachable, timed out, or blocked."""
-    def __init__(self, message: str = "Official attendance integration is currently unavailable."):
+    def __init__(self, message: str = "MITS GEMS is currently unavailable. Live attendance could not be retrieved."):
         super().__init__(message, error_type="PORTAL_UNAVAILABLE", status_code=503)
 
 
 class AttendanceMalformedResponseError(AttendanceIntegrationError):
     """Raised when official portal returns unparseable or malformed data."""
-    def __init__(self, message: str = "Official attendance portal returned an unparseable response."):
+    def __init__(self, message: str = "Unable to read attendance data from MITS GEMS."):
         super().__init__(message, error_type="MALFORMED_RESPONSE", status_code=502)
 
 

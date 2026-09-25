@@ -503,28 +503,81 @@ export const checkAttendanceApi = async (
   rollNumber: string,
   password: string
 ): Promise<AttendanceResponse> => {
-  const response = await fetch(`${API_BASE_URL}/api/attendance/check`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ roll_number: rollNumber.trim().toUpperCase(), password }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/attendance/check`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roll_number: rollNumber.trim().toUpperCase(), password }),
+    });
+  } catch {
+    throw new Error('Unable to connect to MITS GEMS right now. Please try again later.');
+  }
 
   if (!response.ok) {
-    let errData: any;
+    let errData: any = null;
     try {
       errData = await response.json();
     } catch {
       errData = null;
     }
-    const msg = extractErrorMessage(
-      errData,
-      response.status === 503
-        ? 'Official attendance integration is currently unavailable.'
-        : 'Failed to retrieve attendance from official system.'
-    );
-    throw new Error(msg);
+    const rawDetail = (typeof errData?.detail === 'string' ? errData.detail : '') || '';
+    const rawLower = rawDetail.toLowerCase();
+
+    // 0. Rate limit exceeded (429)
+    if (
+      response.status === 429 ||
+      rawLower.includes('too many') ||
+      rawLower.includes('rate limit')
+    ) {
+      throw new Error(
+        rawDetail ||
+          'Too many attendance sync attempts. Please wait a few minutes and try again.'
+      );
+    }
+
+    // A. Invalid credentials
+    if (
+      response.status === 401 ||
+      rawLower.includes('invalid') ||
+      rawLower.includes('credential') ||
+      rawLower.includes('password')
+    ) {
+      throw new Error('Invalid MITS GEMS roll number or password.');
+    }
+
+    // C. No attendance records
+    if (
+      rawLower.includes('no attendance records') ||
+      rawLower.includes('zero') ||
+      rawLower.includes('no records')
+    ) {
+      throw new Error('No attendance records were returned by MITS GEMS.');
+    }
+
+    // B. GEMS unavailable
+    if (
+      response.status === 503 ||
+      rawLower.includes('unavailable') ||
+      rawLower.includes('timed out') ||
+      rawLower.includes('connection failed')
+    ) {
+      throw new Error('Unable to connect to MITS GEMS right now. Please try again later.');
+    }
+
+    // D. Unexpected GEMS response / malformed
+    if (
+      response.status === 502 ||
+      rawLower.includes('could not read') ||
+      rawLower.includes('unable to read') ||
+      rawLower.includes('malformed')
+    ) {
+      throw new Error('Could not read attendance data from MITS GEMS.');
+    }
+
+    throw new Error(rawDetail || 'Could not read attendance data from MITS GEMS.');
   }
 
   return await response.json();
