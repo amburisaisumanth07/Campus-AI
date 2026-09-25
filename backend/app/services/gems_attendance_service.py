@@ -623,7 +623,7 @@ class GemsAttendanceAdapter:
         client_provided = http_client is not None
         expected_host = urllib.parse.urlparse(self.base_url).netloc.lower()
 
-        def _validate_redirect(response: httpx.Response):
+        async def _validate_redirect(response: httpx.Response):
             if response.is_redirect and "location" in response.headers:
                 loc = response.headers["location"].strip()
                 parsed = urllib.parse.urlparse(loc)

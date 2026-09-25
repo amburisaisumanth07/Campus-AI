@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.api.dependencies import get_db
+from backend.app.core.logging import logger
 from backend.app.core.rate_limiter import attendance_rate_limiter, get_client_ip
 from backend.app.core.security import decode_access_token
 from backend.app.db.models import User
@@ -111,7 +112,8 @@ async def check_attendance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not read attendance data from MITS GEMS."
         )
-    except Exception:
+    except Exception as exc:
+        logger.exception(f"[ATTENDANCE_CHECK_FAILED] Unexpected error: {type(exc).__name__}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not read attendance data from MITS GEMS."

@@ -799,3 +799,54 @@ def test_raw_text_regex_fallback_extraction():
     assert result["subjects"][0]["percentage"] == 90.0
     assert result["semester"] == "III YEAR I SEMESTER"
 
+
+@pytest.mark.asyncio
+async def test_async_event_hook_executes_without_type_error(monkeypatch):
+    """Regression test: AsyncClient response event hook must be awaitable and not raise TypeError."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "studentLogin" in str(request.url):
+            return httpx.Response(200, text="{'status': 'fail', 'message': 'Invalid'}", request=request)
+        if "studentLogout" in str(request.url):
+            return httpx.Response(200, text="{}", request=request)
+        return httpx.Response(404, request=request)
+
+    mock_transport = httpx.MockTransport(handler)
+    orig_async_client = httpx.AsyncClient
+
+    def custom_async_client(*args, **kwargs):
+        kwargs["transport"] = mock_transport
+        return orig_async_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", custom_async_client)
+
+    adapter = GemsAttendanceAdapter()
+    # Before the fix, this raised TypeError: 'NoneType' object can't be awaited
+    with pytest.raises(AttendanceAuthError):
+        await adapter.fetch_attendance("24691A31N1", "WrongPass123!")
+
+
+@pytest.mark.asyncio
+async def test_async_event_hook_blocks_off_domain_redirect(monkeypatch):
+    """Ensure off-domain redirect protection remains active and blocks foreign hosts."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "studentLogin" in str(request.url):
+            return httpx.Response(
+                302,
+                headers={"Location": "http://evil-phishing-host.com/login"},
+                request=request
+            )
+        return httpx.Response(200, text="{}", request=request)
+
+    mock_transport = httpx.MockTransport(handler)
+    orig_async_client = httpx.AsyncClient
+
+    def custom_async_client(*args, **kwargs):
+        kwargs["transport"] = mock_transport
+        return orig_async_client(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", custom_async_client)
+
+    adapter = GemsAttendanceAdapter()
+    with pytest.raises(AttendancePortalUnavailableError) as exc_info:
+        await adapter.fetch_attendance("24691A31N1", "Pass123!")
+    assert "External redirect prohibited" in str(exc_info.value)
